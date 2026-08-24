@@ -1,0 +1,19 @@
+{
+  "name": "OneTrip — Pre-Trip Inspection",
+  "short_name": "OneTrip",
+  "description": "Pre-trip truck inspection PWA that eliminates pencil whipping.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
