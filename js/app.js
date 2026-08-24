@@ -2,7 +2,20 @@
 
 const root = document.getElementById('app');
 
+// Every state change re-renders by tearing down and rebuilding the whole
+// screen (no diffing) — simple, but on its own that throws the scroll
+// position back toward the top on every single tap, which is exactly the
+// kind of thing that makes a long checklist miserable to fill out one-
+// handed. Preserve scroll position across a same-screen re-render (tapping
+// Pass on item 14 of 27 shouldn't yank you back up); only reset to the top
+// when actually navigating to a different screen.
+let lastRenderedScreen = null;
+
 function render() {
+  const scrollY = window.scrollY;
+  const sameScreen = inspection.screen === lastRenderedScreen;
+  lastRenderedScreen = inspection.screen;
+
   root.innerHTML = '';
   switch (inspection.screen) {
     case 'setup':
@@ -29,6 +42,8 @@ function render() {
     default:
       root.appendChild(renderSetupScreen());
   }
+
+  window.scrollTo(0, sameScreen ? scrollY : 0);
 }
 
 function el(tag, attrs = {}, children = []) {
