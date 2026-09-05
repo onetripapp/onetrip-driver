@@ -555,11 +555,19 @@ body {
   right: 0;
   background: linear-gradient(to top, var(--bg) 70%, transparent);
   padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .sticky-footer .btn {
   max-width: 640px;
+  width: 100%;
   margin: 0 auto;
+}
+
+.sticky-footer .btn-secondary {
+  margin-top: 0; /* the flex gap on .sticky-footer already spaces stacked buttons */
 }
 
 /* Transition / done screens */

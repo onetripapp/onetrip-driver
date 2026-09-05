@@ -158,10 +158,10 @@ function updateBeginButtonState() {
 
 // ---------- Phase screens (shared renderer) ----------
 
-function renderPhaseScreen(title, zones, progress, footer, backTarget) {
+function renderPhaseScreen(title, zones, progress, footer) {
   const container = el('div', { class: 'screen phase-screen' });
 
-  container.appendChild(renderPhaseHeader(title, progress, backTarget));
+  container.appendChild(renderPhaseHeader(title, progress));
 
   const list = el('div', { class: 'zone-list' });
   for (const zone of zones) {
@@ -181,14 +181,16 @@ function renderPhase1Screen() {
 }
 
 function renderPhase2Screen() {
-  return renderPhaseScreen('Phase 2 — Full Exterior Walk', PHASE2_ZONES, phase2Progress(), renderPhase2Footer(), { screen: 'phase1', label: 'Back to Phase 1' });
+  const backTarget = { screen: 'phase1', label: 'Back to Phase 1' };
+  return renderPhaseScreen('Phase 2 — Full Exterior Walk', PHASE2_ZONES, phase2Progress(), renderPhase2Footer(backTarget));
 }
 
 // Phase 3 has no zone grouping (it's one location, in-cab), so it renders
 // stations directly rather than going through renderPhaseScreen.
 function renderPhase3Screen() {
+  const backTarget = { screen: 'phase2', label: 'Back to Phase 2' };
   const container = el('div', { class: 'screen phase-screen' });
-  container.appendChild(renderPhaseHeader('Phase 3 — In-Cab Finale', phase3Progress(), { screen: 'phase2', label: 'Back to Phase 2' }));
+  container.appendChild(renderPhaseHeader('Phase 3 — In-Cab Finale', phase3Progress()));
 
   const list = el('div', { class: 'zone-list' });
   for (const station of PHASE3_STATIONS) {
@@ -196,11 +198,11 @@ function renderPhase3Screen() {
   }
   container.appendChild(list);
 
-  container.appendChild(renderPhase3Footer());
+  container.appendChild(renderPhase3Footer(backTarget));
   return container;
 }
 
-function renderPhaseHeader(title, progress, backTarget) {
+function renderPhaseHeader(title, progress) {
   const header = el('div', { class: 'phase-header' });
 
   // Once certified the record is locked and none of this applies — the
@@ -208,17 +210,6 @@ function renderPhaseHeader(title, progress, backTarget) {
   // in that state, so these links would be redundant/misleading there.
   if (!isCertified()) {
     const metaRow = el('div', { class: 'phase-meta-row' });
-    if (backTarget) {
-      metaRow.appendChild(el('button', {
-        class: 'phase-nav-link',
-        text: `← ${backTarget.label}`,
-        onclick: () => {
-          inspection.screen = backTarget.screen;
-          saveInspection();
-          render();
-        },
-      }));
-    }
     metaRow.appendChild(el('button', {
       class: 'phase-nav-link phase-edit-info-link',
       text: `✎ Truck ${inspection.truckNumber} — ${inspection.driverName}`,
@@ -680,9 +671,22 @@ function renderPhase1Footer() {
   return footer;
 }
 
-function renderPhase2Footer() {
+function renderBackButton(backTarget) {
+  return el('button', {
+    class: 'btn btn-secondary btn-block',
+    text: `← ${backTarget.label}`,
+    onclick: () => {
+      inspection.screen = backTarget.screen;
+      saveInspection();
+      render();
+    },
+  });
+}
+
+function renderPhase2Footer(backTarget) {
   if (isCertified()) return renderReadOnlyFooter();
   const footer = el('div', { class: 'sticky-footer' });
+  footer.appendChild(renderBackButton(backTarget));
   const ready = isPhase2Complete();
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
@@ -699,9 +703,10 @@ function renderPhase2Footer() {
   return footer;
 }
 
-function renderPhase3Footer() {
+function renderPhase3Footer(backTarget) {
   if (isCertified()) return renderReadOnlyFooter();
   const footer = el('div', { class: 'sticky-footer' });
+  footer.appendChild(renderBackButton(backTarget));
   const ready = isPhase3Complete();
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
@@ -723,24 +728,14 @@ function renderPhase3Footer() {
 function renderTransitionScreen() {
   const container = el('div', { class: 'screen transition-screen' });
 
-  const metaRow = el('div', { class: 'phase-meta-row' });
-  metaRow.appendChild(el('button', {
-    class: 'phase-nav-link',
-    text: '← Back to Phase 1',
-    onclick: () => {
-      inspection.screen = 'phase1';
-      saveInspection();
-      render();
-    },
-  }));
-  container.appendChild(metaRow);
-
   container.appendChild(el('h1', { class: 'phase-title', text: 'Engine Off Phase Complete' }));
   container.appendChild(el('p', { class: 'transition-instructions', text: TRANSITION_1_TO_2.instructions }));
 
   if (inspection.transitionLog) {
     container.appendChild(el('p', { class: 'transition-logged', text: `Confirmed at ${new Date(inspection.transitionLog.confirmedAt).toLocaleTimeString()}` }));
   }
+
+  container.appendChild(renderBackButton({ screen: 'phase1', label: 'Back to Phase 1' }));
 
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
