@@ -1,0 +1,16 @@
+{
+  "truckNumber": "826016",
+  "truckDescription": "Mack Pinnacle, Indeca Crude Xpress",
+  "source": "OneTrip_Calibration_Reference.docx, confirmed baseline set provided 2026-08-29",
+  "zones": {
+    "1": "826016-zone1-driver-side-engine-bay.jpg",
+    "2": "826016-zone2-passenger-side-engine-bay.jpg",
+    "3": "826016-zone3-front-of-truck.jpg",
+    "4": "826016-zone4-back-half-driver-side.jpg",
+    "5": "826016-zone5-rear-fifth-wheel.jpg",
+    "6": "826016-zone6-back-half-passenger-side.jpg",
+    "7": "826016-zone7-driver-side-rear-trailer.jpg",
+    "8": "826016-zone8-absolute-rear-trailer.jpg",
+    "9": "826016-zone9-passenger-side-rear-trailer.jpg"
+  }
+}

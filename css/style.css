@@ -452,12 +452,30 @@ body {
   flex-direction: column;
 }
 
-.camera-video {
+.camera-video-wrap {
   flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+
+.camera-video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   background: #000;
+}
+
+.camera-reference-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .camera-error {

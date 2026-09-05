@@ -5,13 +5,19 @@
 // responses, so they're never accidentally cached here — every upload
 // attempt hits the real network.
 
-const CACHE_NAME = 'onetrip-shell-v1';
+// v2: added baselineReference.js. Deliberately does NOT eagerly cache
+// assets/baseline-photos/** here — that's 17MB+ for one truck already, and
+// growing. Those images pick up caching for free the first time they're
+// actually requested, via the runtime cache-and-store logic in the fetch
+// handler below — no separate cache-warming code needed.
+const CACHE_NAME = 'onetrip-shell-v2';
 const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
   './css/style.css',
   './js/data.js',
+  './js/baselineReference.js',
   './js/photoStore.js',
   './js/state.js',
   './js/drive.js',

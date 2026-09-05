@@ -464,3 +464,14 @@ function getAllStationsWithZoneContext() {
   for (const station of PHASE3_STATIONS) result.push({ zoneName: 'In-Cab', station });
   return result;
 }
+
+// Reverse lookup for the baseline-photo overlay: which zone (1-9) a given
+// station belongs to. Phase 3 stations aren't part of any zone (the
+// baseline set only covers the 9 exterior/engine-bay zones), so this
+// correctly returns null for them — no overlay is shown there.
+function getZoneNumberForStation(stationId) {
+  for (const zone of [...PHASE1_ZONES, ...PHASE2_ZONES]) {
+    if (zone.stations.some((s) => s.id === stationId)) return zone.zone;
+  }
+  return null;
+}

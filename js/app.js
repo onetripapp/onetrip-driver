@@ -305,7 +305,7 @@ function handleCameraVisibilityChange() {
 
 function openCamera(stationId) {
   cameraTargetStationId = stationId;
-  const overlay = buildCameraOverlay();
+  const overlay = buildCameraOverlay(stationId);
   document.body.appendChild(overlay);
   document.addEventListener('visibilitychange', handleCameraVisibilityChange);
 
@@ -372,9 +372,29 @@ async function capturePhoto() {
   render();
 }
 
-function buildCameraOverlay() {
+// Baseline reference guide: if this truck has a confirmed "gold standard"
+// wide-angle photo for the zone this station belongs to, show it as a
+// fixed, translucent overlay on the live feed so the driver can line up
+// their shot before capturing. No toggle for now (per product decision) —
+// trucks/stations with no reference on file just get the plain camera,
+// unaffected.
+function buildCameraOverlay(stationId) {
   const overlay = el('div', { id: 'camera-overlay', class: 'camera-overlay' });
-  overlay.appendChild(el('video', { class: 'camera-video', autoplay: '', playsinline: '', muted: '' }));
+
+  const videoWrap = el('div', { class: 'camera-video-wrap' });
+  videoWrap.appendChild(el('video', { class: 'camera-video', autoplay: '', playsinline: '', muted: '' }));
+
+  const zoneNumber = getZoneNumberForStation(stationId);
+  const referenceUrl = getBaselineReferenceImage(inspection.truckNumber.trim(), zoneNumber);
+  if (referenceUrl) {
+    videoWrap.appendChild(el('img', {
+      class: 'camera-reference-overlay',
+      src: referenceUrl,
+      alt: 'Baseline reference framing guide',
+    }));
+  }
+  overlay.appendChild(videoWrap);
+
   overlay.appendChild(el('p', { class: 'camera-error' }));
 
   const controls = el('div', { class: 'camera-controls' });
