@@ -11,6 +11,11 @@ const root = document.getElementById('app');
 // when actually navigating to a different screen.
 let lastRenderedScreen = null;
 
+// Where to return after editing truck/driver info from mid-walk (see
+// renderPhaseHeader's edit-info link) — null means "starting fresh from
+// Setup," not "editing," so the Begin button knows which to do.
+let editInfoReturnScreen = null;
+
 function render() {
   const scrollY = window.scrollY;
   const sameScreen = inspection.screen === lastRenderedScreen;
@@ -64,9 +69,13 @@ function el(tag, attrs = {}, children = []) {
 
 function renderSetupScreen() {
   const container = el('div', { class: 'screen setup-screen' });
+  const isEditing = editInfoReturnScreen !== null;
 
   container.appendChild(el('h1', { class: 'app-title', text: 'OneTrip' }));
-  container.appendChild(el('p', { class: 'app-subtitle', text: 'Pre-Trip Inspection' }));
+  container.appendChild(el('p', { class: 'app-subtitle', text: isEditing ? 'Edit Truck / Driver Info' : 'Pre-Trip Inspection' }));
+  if (isEditing) {
+    container.appendChild(el('p', { class: 'done-copy', text: 'Your inspection progress is untouched — this only changes the truck number and driver name.' }));
+  }
 
   const form = el('div', { class: 'setup-form' });
 
@@ -125,10 +134,11 @@ function renderSetupScreen() {
   const beginBtn = el('button', {
     id: 'beginBtn',
     class: 'btn btn-primary btn-block btn-large',
-    text: 'Begin Inspection — Phase 1',
+    text: isEditing ? 'Save & Continue' : 'Begin Inspection — Phase 1',
     onclick: () => {
       if (!inspection.truckNumber.trim() || !inspection.driverName.trim()) return;
-      inspection.screen = 'phase1';
+      inspection.screen = editInfoReturnScreen || 'phase1';
+      editInfoReturnScreen = null;
       saveInspection();
       render();
     },
@@ -148,10 +158,10 @@ function updateBeginButtonState() {
 
 // ---------- Phase screens (shared renderer) ----------
 
-function renderPhaseScreen(title, zones, progress, footer) {
+function renderPhaseScreen(title, zones, progress, footer, backTarget) {
   const container = el('div', { class: 'screen phase-screen' });
 
-  container.appendChild(renderPhaseHeader(title, progress));
+  container.appendChild(renderPhaseHeader(title, progress, backTarget));
 
   const list = el('div', { class: 'zone-list' });
   for (const zone of zones) {
@@ -171,14 +181,14 @@ function renderPhase1Screen() {
 }
 
 function renderPhase2Screen() {
-  return renderPhaseScreen('Phase 2 — Full Exterior Walk', PHASE2_ZONES, phase2Progress(), renderPhase2Footer());
+  return renderPhaseScreen('Phase 2 — Full Exterior Walk', PHASE2_ZONES, phase2Progress(), renderPhase2Footer(), { screen: 'phase1', label: 'Back to Phase 1' });
 }
 
 // Phase 3 has no zone grouping (it's one location, in-cab), so it renders
 // stations directly rather than going through renderPhaseScreen.
 function renderPhase3Screen() {
   const container = el('div', { class: 'screen phase-screen' });
-  container.appendChild(renderPhaseHeader('Phase 3 — In-Cab Finale', phase3Progress()));
+  container.appendChild(renderPhaseHeader('Phase 3 — In-Cab Finale', phase3Progress(), { screen: 'phase2', label: 'Back to Phase 2' }));
 
   const list = el('div', { class: 'zone-list' });
   for (const station of PHASE3_STATIONS) {
@@ -190,8 +200,38 @@ function renderPhase3Screen() {
   return container;
 }
 
-function renderPhaseHeader(title, progress) {
+function renderPhaseHeader(title, progress, backTarget) {
   const header = el('div', { class: 'phase-header' });
+
+  // Once certified the record is locked and none of this applies — the
+  // phase screens already switch to a read-only "Back to Summary" footer
+  // in that state, so these links would be redundant/misleading there.
+  if (!isCertified()) {
+    const metaRow = el('div', { class: 'phase-meta-row' });
+    if (backTarget) {
+      metaRow.appendChild(el('button', {
+        class: 'phase-nav-link',
+        text: `← ${backTarget.label}`,
+        onclick: () => {
+          inspection.screen = backTarget.screen;
+          saveInspection();
+          render();
+        },
+      }));
+    }
+    metaRow.appendChild(el('button', {
+      class: 'phase-nav-link phase-edit-info-link',
+      text: `✎ Truck ${inspection.truckNumber} — ${inspection.driverName}`,
+      onclick: () => {
+        editInfoReturnScreen = inspection.screen;
+        inspection.screen = 'setup';
+        saveInspection();
+        render();
+      },
+    }));
+    header.appendChild(metaRow);
+  }
+
   header.appendChild(el('h1', { class: 'phase-title', text: title }));
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
   const barWrap = el('div', { class: 'progress-bar-wrap' });
@@ -682,6 +722,19 @@ function renderPhase3Footer() {
 
 function renderTransitionScreen() {
   const container = el('div', { class: 'screen transition-screen' });
+
+  const metaRow = el('div', { class: 'phase-meta-row' });
+  metaRow.appendChild(el('button', {
+    class: 'phase-nav-link',
+    text: '← Back to Phase 1',
+    onclick: () => {
+      inspection.screen = 'phase1';
+      saveInspection();
+      render();
+    },
+  }));
+  container.appendChild(metaRow);
+
   container.appendChild(el('h1', { class: 'phase-title', text: 'Engine Off Phase Complete' }));
   container.appendChild(el('p', { class: 'transition-instructions', text: TRANSITION_1_TO_2.instructions }));
 

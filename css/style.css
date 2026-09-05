@@ -166,6 +166,36 @@ body {
   z-index: 5;
 }
 
+.phase-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.phase-nav-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 8px 0;
+  min-height: 36px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.phase-edit-info-link {
+  color: var(--text-dim);
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+
 .progress-bar-wrap {
   background: var(--surface);
   border-radius: 999px;
