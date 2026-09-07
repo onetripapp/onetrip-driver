@@ -109,6 +109,12 @@ async function uploadInspectionToDrive() {
   const exportData = buildInspectionExport();
   const jsonBase64 = utf8ToBase64(JSON.stringify(exportData, null, 2));
   await uploadOnce('inspection-data.json', jsonBase64, 'application/json');
+
+  // Same exportData, just formatted for a person instead of a dashboard —
+  // built from the object above, not a second read of `inspection`, so
+  // this can never disagree with the JSON sitting next to it in Drive.
+  const summaryText = buildInspectionSummaryText(exportData);
+  await uploadOnce('inspection-summary.txt', utf8ToBase64(summaryText), 'text/plain');
 }
 
 async function startUpload() {

@@ -302,3 +302,115 @@ function buildInspectionExport() {
     stations,
   };
 }
+
+function formatCertifiedAt(isoString) {
+  if (!isoString) return 'Unknown';
+  const d = new Date(isoString);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${yyyy}-${mm}-${dd} ${hours}:${minutes} ${ampm}`;
+}
+
+// A unit like "psi" or "sec" reads better with a space ("40 psi"); one
+// like the tread-depth `/32"` reads better without one ("4/32""), matching
+// how that same value is written throughout the app's own station labels.
+function formatValueWithUnit(value, unit) {
+  if (value === null || value === undefined || value === '') return 'not recorded';
+  if (!unit) return String(value);
+  return /^[a-zA-Z]/.test(unit) ? `${value} ${unit}` : `${value}${unit}`;
+}
+
+// Station 11 (air brake system) is all individually-meaningful numeric
+// readings, not a single overall Pass/Fail like every other station — it
+// gets its own itemized section below instead of a one-line verdict.
+const SUMMARY_STANDALONE_STATION_IDS = ['11'];
+
+function stationVerdict(stationExport) {
+  return stationExport.subItems.some((si) => si.status === 'fail') ? 'FAIL' : 'PASS';
+}
+
+// A plain-text companion to inspection-data.json for anyone opening the
+// Drive folder directly (an auditor, an adjuster, a person, not a
+// dashboard) — deliberately built from the exact same export object
+// passed in, not a second read of `inspection`, so this can never say
+// something different than the JSON sitting right next to it.
+function buildInspectionSummaryText(exportData) {
+  const orderedStations = getAllStationsWithZoneContext();
+  const lines = [];
+
+  lines.push('ONETRIP INSPECTION SUMMARY');
+  lines.push('============================');
+  lines.push(`Truck:        ${exportData.truckNumber}`);
+  lines.push(`Driver:       ${exportData.driverName}`);
+  lines.push(`Date:         ${exportData.date}`);
+  lines.push(`Certified at: ${formatCertifiedAt(exportData.certifiedAt)}`);
+  lines.push('');
+  lines.push(`RESULT: ${exportData.summary.done} / ${exportData.summary.total} items checked`);
+
+  // Built directly from exportData.stations (not the separate failedItems
+  // field) so this list and the per-station verdicts below are guaranteed
+  // to agree — and so the subitem's own def is reachable for a threshold
+  // description, without adding fields to the JSON export shape itself.
+  const defectLines = [];
+  for (const { station } of orderedStations) {
+    const stationExport = exportData.stations[station.id];
+    if (!stationExport) continue;
+    for (const si of stationExport.subItems) {
+      if (si.status !== 'fail') continue;
+      const subDef = station.subItems.find((s) => s.id === si.id);
+      const hasThreshold = subDef && subDef.thresholdType;
+      const valueText = formatValueWithUnit(si.value, si.unit);
+      const requirement = hasThreshold ? `, must be ${thresholdRequirement(subDef)}` : '';
+      defectLines.push(`Station ${station.id} - ${si.label}: FAIL (recorded value: ${valueText}${requirement})`);
+    }
+  }
+
+  lines.push(`DEFECTS FOUND: ${defectLines.length}`);
+  lines.push('');
+
+  if (defectLines.length > 0) {
+    lines.push('⚠ DEFECTS FOUND — REVIEW REQUIRED ⚠');
+    lines.push('');
+    lines.push(...defectLines);
+    lines.push('');
+  }
+
+  lines.push('--- ZONE BREAKDOWN ---');
+  lines.push('');
+  let currentZone = null;
+  for (const { zoneName, station } of orderedStations) {
+    if (SUMMARY_STANDALONE_STATION_IDS.includes(station.id)) continue;
+    const stationExport = exportData.stations[station.id];
+    if (!stationExport) continue;
+    if (zoneName !== currentZone) {
+      if (currentZone !== null) lines.push('');
+      lines.push(zoneName);
+      currentZone = zoneName;
+    }
+    lines.push(`  Station ${station.id} - ${station.label}: ${stationVerdict(stationExport)}`);
+  }
+  lines.push('');
+
+  for (const standaloneId of SUMMARY_STANDALONE_STATION_IDS) {
+    const stationExport = exportData.stations[standaloneId];
+    const stationDef = getStationDef(standaloneId);
+    if (!stationExport || !stationDef) continue;
+    lines.push(`--- ${stationDef.label.toUpperCase()} (Station ${standaloneId}) ---`);
+    for (const si of stationExport.subItems) {
+      const hasValue = si.value !== null && si.value !== undefined && si.value !== '';
+      const valueText = hasValue ? `${formatValueWithUnit(si.value, si.unit)} ` : '';
+      lines.push(`${si.label}: ${valueText}(${si.status || 'not recorded'})`);
+    }
+    lines.push('');
+  }
+
+  lines.push('--- ANY FAILED ITEMS ---');
+  lines.push(...(defectLines.length > 0 ? defectLines : ['None']));
+
+  return lines.join('\n');
+}
