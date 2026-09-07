@@ -52,6 +52,12 @@ function freshInspection() {
     uploadStatus: 'not_started',
     uploadedAt: null,
     uploadError: null,
+    // Filenames already confirmed saved to Drive, persisted as each one
+    // succeeds (not just at the end) — so if the upload stalls or errors
+    // partway through a long sequence of photos and the driver hits Retry,
+    // already-uploaded files are skipped instead of being sent again and
+    // duplicated in the Drive folder.
+    uploadedFiles: [],
     stations,
   };
 }

@@ -1012,9 +1012,24 @@ function renderGateScreen() {
 function boot() {
   if (isGateUnlocked()) {
     render();
+    resumeStalledUploadIfNeeded();
   } else {
     root.innerHTML = '';
     root.appendChild(renderGateScreen());
+  }
+}
+
+// 'uploading' is only ever meaningful while the page that set it is still
+// running — it can never legitimately survive a reload, since no fetch
+// keeps running across one. If a driver's connection dropped mid-upload,
+// or the app got closed/killed mid-upload, they'd otherwise reopen it to
+// a permanently stuck "Uploading…" screen with no button and no way out,
+// since only the 'error' status renders a Retry control. Automatically
+// resuming here is safe because startUpload()/uploadOnce() already skip
+// whatever previously made it to Drive, so this can't duplicate files.
+function resumeStalledUploadIfNeeded() {
+  if (inspection.certifiedAt && inspection.uploadStatus === 'uploading') {
+    startUpload();
   }
 }
 

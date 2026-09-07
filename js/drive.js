@@ -36,22 +36,45 @@ function utf8ToBase64(str) {
   return btoa(unescape(encodeURIComponent(str)));
 }
 
+// A real truck walk often means patchy signal — with no timeout, a single
+// stalled request (fetch has no default one) hangs this forever with the
+// UI stuck on "Uploading…" and no error, no retry option, and — since
+// photos upload before inspection-data.json — no checklist data ever
+// reaching Drive even though every photo already did. 60s is generous for
+// the ~1.6MB photos this app produces even on a weak connection, while
+// still failing fast enough that "stuck" turns into a visible, retryable
+// error instead of an indefinite hang.
+const UPLOAD_TIMEOUT_MS = 60 * 1000;
+
 async function uploadFileToBackend(filename, contentBase64, mimeType) {
-  const res = await fetch(UPLOAD_FUNCTION_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-App-Secret': APP_SHARED_SECRET,
-    },
-    body: JSON.stringify({
-      truckNumber: inspection.truckNumber.trim(),
-      driverName: inspection.driverName.trim(),
-      date: inspection.date,
-      filename,
-      contentBase64,
-      mimeType,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(UPLOAD_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-App-Secret': APP_SHARED_SECRET,
+      },
+      body: JSON.stringify({
+        truckNumber: inspection.truckNumber.trim(),
+        driverName: inspection.driverName.trim(),
+        date: inspection.date,
+        filename,
+        contentBase64,
+        mimeType,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Upload of ${filename} timed out — check your connection and try again.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!res.ok) {
     const errBody = await res.text().catch(() => '');
     throw new Error(`Upload of ${filename} failed (${res.status}): ${errBody.slice(0, 200)}`);
@@ -59,18 +82,33 @@ async function uploadFileToBackend(filename, contentBase64, mimeType) {
   return res.json();
 }
 
+// Every successful file is recorded immediately (not just at the end) so
+// that if a later file in the sequence stalls or fails, hitting Retry
+// resumes from where it left off — re-sending everything from scratch
+// would duplicate every photo that already made it to Drive.
+async function uploadOnce(filename, contentBase64, mimeType) {
+  if (inspection.uploadedFiles.includes(filename)) return;
+  await uploadFileToBackend(filename, contentBase64, mimeType);
+  inspection.uploadedFiles.push(filename);
+  saveInspection();
+}
+
 async function uploadInspectionToDrive() {
   const allStations = getAllStationsWithZoneContext().map((x) => x.station);
   for (const station of allStations) {
     if (!stationNeedsPhoto(station) || !station.photoFilename) continue;
+    if (inspection.uploadedFiles.includes(station.photoFilename)) continue;
     const dataUri = await getPhoto(station.id);
     if (!dataUri) continue; // shouldn't happen — certification already gates on this
-    await uploadFileToBackend(station.photoFilename, dataUriToBase64(dataUri), dataUriMimeType(dataUri));
+    await uploadOnce(station.photoFilename, dataUriToBase64(dataUri), dataUriMimeType(dataUri));
   }
 
+  // The export object itself is always rebuilt fresh (cheap, stateless) so
+  // it reflects current data on a retry — only the network call is skipped
+  // if it already succeeded, same as the photos above.
   const exportData = buildInspectionExport();
   const jsonBase64 = utf8ToBase64(JSON.stringify(exportData, null, 2));
-  await uploadFileToBackend('inspection-data.json', jsonBase64, 'application/json');
+  await uploadOnce('inspection-data.json', jsonBase64, 'application/json');
 }
 
 async function startUpload() {
