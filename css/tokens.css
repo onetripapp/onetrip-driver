@@ -1,0 +1,39 @@
+/* OneTrip design tokens — the ONLY place any color, font, radius, or tap
+   target value is defined. Every other file references these by name.
+   Swapping the palette later means editing this file, not hunting through
+   components. */
+
+:root {
+  /* Surfaces */
+  --bg-base: #1C1B19;
+  --bg-surface: #252320;
+
+  /* Borders */
+  --border: #302D28;
+  --border-strong: #38352E;
+
+  /* Text */
+  --text-primary: #EDEAE2;
+  --text-secondary: #8C897E;
+  --text-muted: #7A776E;
+
+  /* Accent — brass gold. Reserved for: primary action button, the open-
+     defects count, progress-bar fill, and the streak number. Never
+     decorative anywhere else. */
+  --accent: #B8934D;
+  --accent-on: #1C1204;
+
+  /* Defect — muted brick red. Reserved exclusively for open/failed
+     inspection items. Never a general warning or highlight color. */
+  --defect: #A8483A;
+
+  /* Shape */
+  --radius: 2px;
+
+  /* Type */
+  --font-heading: 'Source Serif Pro', Georgia, serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+
+  /* Interaction */
+  --tap-min: 56px;
+}

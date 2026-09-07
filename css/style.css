@@ -1,20 +1,6 @@
-/* OneTrip — mobile-first, high contrast, large tap targets for outdoor/one-handed use */
-
-:root {
-  --bg: #0b0f14;
-  --surface: #151b23;
-  --surface-raised: #1c2430;
-  --border: #2c3644;
-  --text: #f5f7fa;
-  --text-dim: #9aa7b6;
-  --accent: #ffcc00;
-  --accent-text: #0b0f14;
-  --pass: #22c55e;
-  --fail: #ef4444;
-  --na: #6b7280;
-  --danger: #b91c1c;
-  --tap-min: 56px;
-}
+/* OneTrip — mobile-first, high contrast, large tap targets for outdoor/one-
+   handed use. Every color/radius/font here is a var() from tokens.css —
+   see that file before touching any value in this one. */
 
 * {
   box-sizing: border-box;
@@ -23,9 +9,9 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -39,6 +25,36 @@ body {
   flex-direction: column;
 }
 
+/* Persistent top bar, every screen. Deliberately the only branding shown
+   anywhere in the app — no parent-company name or logo, ever. */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 16px 16px 0;
+}
+
+.app-header-wordmark {
+  font-family: var(--font-heading);
+  font-variant: small-caps;
+  color: var(--accent);
+  font-size: 1rem;
+  letter-spacing: 2px;
+}
+
+.app-header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--font-body);
+  color: var(--text-muted);
+  font-size: 13px; /* the app-wide meta-text floor */
+  line-height: 1.5;
+}
+
 .screen {
   padding: 20px 16px 96px;
   max-width: 640px;
@@ -46,47 +62,84 @@ body {
   width: 100%;
 }
 
+/* Screen-to-screen navigation (Setup -> Phase 1 -> ... -> Complete) slides
+   in from the right — never a hard cut, never a fade. Only applied when
+   actually landing on a new screen (see render() in app.js); a same-screen
+   re-render (tapping Pass on item 14 of 27) never re-triggers this. */
+.screen-enter {
+  animation: screen-slide-in 320ms ease-out;
+}
+
+@keyframes screen-slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-enter {
+    animation: none;
+  }
+}
+
 /* Typography */
 
 .app-title {
-  font-size: 2.2rem;
-  font-weight: 800;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 2.1rem;
   margin: 24px 0 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
 }
 
 .app-subtitle {
-  color: var(--text-dim);
-  font-size: 1.1rem;
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.5;
   margin: 4px 0 32px;
 }
 
 .phase-title {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.4rem;
+  letter-spacing: -0.2px;
   margin: 0 0 12px;
+  color: var(--text-primary);
 }
 
 .zone-heading {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
   margin: 28px 0 12px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.4px;
 }
 
 /* Buttons */
 
 .btn {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px 20px;
   min-height: var(--tap-min);
   cursor: pointer;
   touch-action: manipulation;
+  transition: transform 200ms ease, filter 200ms ease, background 200ms ease;
+}
+
+/* Consistent press feedback on every button, everywhere — not just the
+   primary capture button. Pure CSS (:active), no JS required. */
+.btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.92);
 }
 
 .btn-block {
@@ -95,32 +148,37 @@ body {
 }
 
 .btn-large {
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   padding: 18px 20px;
 }
 
 .btn-primary {
   background: var(--accent);
-  color: var(--accent-text);
+  color: var(--accent-on);
 }
 
 .btn-primary:disabled {
-  background: #4a4a3a;
-  color: #8a8a7a;
+  background: var(--bg-surface);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
+.btn-primary:disabled:active {
+  transform: none;
+  filter: none;
+}
+
 .btn-secondary {
-  background: var(--surface-raised);
-  color: var(--text);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   border: 1px solid var(--border);
   margin-top: 16px;
 }
 
 .btn-danger {
   background: transparent;
-  color: var(--fail);
-  border: 1px solid var(--fail);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
   margin-top: 12px;
 }
 
@@ -134,19 +192,22 @@ body {
 }
 
 .field-label {
-  font-size: 0.95rem;
-  color: var(--text-dim);
+  font-size: 0.85rem;
+  color: var(--text-muted);
   margin: 16px 0 6px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .text-input {
-  background: var(--surface);
+  font-family: var(--font-body);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 1.15rem;
+  color: var(--text-primary);
+  font-size: 1.1rem;
   padding: 14px 16px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   min-height: var(--tap-min);
   width: 100%;
 }
@@ -161,7 +222,7 @@ body {
 .phase-header {
   position: sticky;
   top: 0;
-  background: var(--bg);
+  background: var(--bg-base);
   padding: 16px 0 12px;
   z-index: 5;
 }
@@ -175,20 +236,26 @@ body {
 }
 
 .phase-nav-link {
+  font-family: var(--font-body);
   background: none;
   border: none;
-  color: var(--accent);
-  font-size: 0.9rem;
-  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
   padding: 8px 0;
-  min-height: 36px;
+  display: flex;
+  align-items: center;
+  min-height: var(--tap-min); /* glove-and-sunlight environment — every interactive element, not just buttons */
   cursor: pointer;
   touch-action: manipulation;
 }
 
+.phase-nav-link:active {
+  transform: scale(0.98);
+  filter: brightness(0.85);
+}
+
 .phase-edit-info-link {
-  color: var(--text-dim);
-  font-weight: 600;
   text-align: right;
   white-space: nowrap;
   overflow: hidden;
@@ -196,12 +263,26 @@ body {
   max-width: 60%;
 }
 
+.progress-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.progress-label-row span {
+  font-size: 13px; /* the app-wide meta-text floor */
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
 .progress-bar-wrap {
-  background: var(--surface);
-  border-radius: 999px;
-  height: 14px;
+  background: var(--border);
+  border-radius: var(--radius);
+  height: 3px;
   overflow: hidden;
-  border: 1px solid var(--border);
 }
 
 .progress-bar-fill {
@@ -210,24 +291,18 @@ body {
   transition: width 0.2s ease;
 }
 
-.progress-label {
-  color: var(--text-dim);
-  font-size: 0.9rem;
-  margin: 8px 0 0;
-}
-
 /* Station cards */
 
 .station-card {
-  background: var(--surface);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 16px;
 }
 
 .station-card.station-complete {
-  border-color: var(--pass);
+  border-color: var(--border-strong);
 }
 
 .station-header {
@@ -237,32 +312,36 @@ body {
 }
 
 .station-id {
-  font-weight: 800;
-  font-size: 1.05rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .station-status-pill {
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
+  font-size: 13px; /* the app-wide meta-text floor */
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--radius);
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.4px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
 }
 
 .pill-complete {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--pass);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .pill-incomplete {
-  background: rgba(255, 204, 0, 0.15);
-  color: var(--accent);
+  color: var(--text-secondary);
 }
 
 .pill-locked {
-  background: rgba(107, 114, 128, 0.2);
-  color: var(--text-dim);
+  color: var(--text-muted);
 }
 
 .station-card.station-locked {
@@ -270,16 +349,19 @@ body {
 }
 
 .station-locked-note {
-  color: var(--text-dim);
-  font-size: 0.9rem;
-  font-style: italic;
+  color: var(--text-muted);
+  font-size: 0.85rem;
   margin: 0;
 }
 
 .station-label {
-  color: var(--text-dim);
-  margin: 6px 0 14px;
-  font-size: 0.95rem;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.3rem;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+  margin: 8px 0 14px;
+  line-height: 1.55;
 }
 
 /* Photo control */
@@ -293,10 +375,27 @@ body {
   min-height: 80px;
   max-height: 220px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--radius);
   margin-bottom: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface-raised); /* fills the gap while the photo loads from IndexedDB */
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface); /* fills the gap while the photo loads from IndexedDB */
+}
+
+.photo-slot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+}
+
+.photo-slot-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted);
 }
 
 /* Sub-items */
@@ -326,21 +425,24 @@ body {
 }
 
 .subitem-label {
-  font-size: 1rem;
-  line-height: 1.3;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-primary);
 }
 
 .checktype-badge {
   flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-dim);
-  background: var(--surface-raised);
+  font-size: 13px; /* the app-wide meta-text floor — nothing renders smaller than this */
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
   border: 1px solid var(--border);
   padding: 3px 7px;
-  border-radius: 6px;
+  border-radius: var(--radius);
   white-space: nowrap;
   align-self: flex-start;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .status-toggles {
@@ -350,38 +452,46 @@ body {
 }
 
 .toggle-btn {
-  min-height: 48px;
-  border-radius: 10px;
+  font-family: var(--font-body);
+  min-height: var(--tap-min);
+  border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: var(--surface-raised);
-  color: var(--text);
-  font-weight: 700;
-  font-size: 0.95rem;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
   cursor: pointer;
   touch-action: manipulation;
+  transition: transform 200ms ease, filter 200ms ease, background 200ms ease;
 }
 
-.toggle-btn.toggle-pass.active {
-  background: var(--pass);
-  border-color: var(--pass);
-  color: #06210f;
+.toggle-btn:active {
+  transform: scale(0.98);
+  filter: brightness(0.92);
 }
 
-.toggle-btn.toggle-fail.active {
-  background: var(--fail);
-  border-color: var(--fail);
-  color: #2b0505;
-}
-
+/* Pass and N/A carry no meaning worth a color — an item that isn't a
+   defect is just neutral, inverted to show it's the selected state. */
+.toggle-btn.toggle-pass.active,
 .toggle-btn.toggle-na.active {
-  background: var(--na);
-  border-color: var(--na);
-  color: #f5f7fa;
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--bg-base);
+}
+
+/* The only colored toggle state in the app — an actual recorded defect. */
+.toggle-btn.toggle-fail.active {
+  background: var(--defect);
+  border-color: var(--defect);
+  color: var(--text-primary);
 }
 
 .fail-flag-note {
-  color: var(--fail);
+  color: var(--defect);
   font-size: 0.85rem;
+  line-height: 1.5;
   margin: 10px 0 0;
 }
 
@@ -389,35 +499,33 @@ body {
 
 .readonly-status-pill {
   display: inline-block;
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.9rem;
   padding: 8px 16px;
-  border-radius: 10px;
-  background: var(--surface-raised);
+  border-radius: var(--radius);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-}
-
-.readonly-status-pill.readonly-pass {
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--pass);
-  border-color: var(--pass);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .readonly-status-pill.readonly-fail {
-  background: rgba(239, 68, 68, 0.15);
-  color: var(--fail);
-  border-color: var(--fail);
+  color: var(--defect);
+  border-color: var(--defect);
 }
 
 .readonly-status-pill.readonly-na {
-  color: var(--text-dim);
+  color: var(--text-muted);
 }
 
 .numeric-readonly-value {
   display: inline-block;
+  font-family: var(--font-heading);
   font-size: 1.1rem;
-  font-weight: 700;
+  font-weight: 500;
   margin-right: 12px;
+  color: var(--text-primary);
 }
 
 /* Numeric threshold sub-items */
@@ -429,15 +537,16 @@ body {
 }
 
 .numeric-input {
+  font-family: var(--font-body);
   flex: 1;
   min-width: 0;
-  background: var(--surface-raised);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-size: 1.05rem;
   padding: 12px 14px;
-  border-radius: 10px;
-  min-height: 48px;
+  border-radius: var(--radius);
+  min-height: var(--tap-min);
 }
 
 .numeric-input:focus {
@@ -446,8 +555,8 @@ body {
 }
 
 .numeric-unit {
-  color: var(--text-dim);
-  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
@@ -459,16 +568,13 @@ body {
 .auto-flag-badge {
   display: block;
   margin-top: 10px;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.auto-flag-badge.auto-flag-pass {
-  color: var(--pass);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .auto-flag-badge.auto-flag-fail {
-  color: var(--fail);
+  color: var(--defect);
 }
 
 /* Live camera capture overlay */
@@ -476,7 +582,7 @@ body {
 .camera-overlay {
   position: fixed;
   inset: 0;
-  background: #000;
+  background: var(--bg-base);
   z-index: 50;
   display: flex;
   flex-direction: column;
@@ -486,7 +592,7 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: var(--bg-base);
 }
 
 .camera-video {
@@ -495,7 +601,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: #000;
+  background: var(--bg-base);
 }
 
 .camera-reference-overlay {
@@ -508,21 +614,27 @@ body {
   pointer-events: none;
 }
 
+/* A camera/permission failure is a system error, not an inspection
+   defect — --defect stays reserved for actual failed checklist items, so
+   this stays neutral like every other non-defect warning in the app. */
 .camera-error {
   position: absolute;
   top: 20px;
   left: 16px;
   right: 16px;
-  color: var(--fail);
-  background: rgba(11, 15, 20, 0.85);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  border: 1px solid var(--border-strong);
   padding: 12px 14px;
-  border-radius: 10px;
-  font-size: 0.95rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  line-height: 1.5;
   text-align: center;
 }
 
 .camera-error:empty {
   display: none;
+  border: none;
 }
 
 .camera-controls {
@@ -533,17 +645,67 @@ body {
   display: flex;
   gap: 12px;
   padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), transparent);
+  background: var(--bg-base);
+  border-top: 1px solid var(--border);
 }
 
 .camera-controls .btn {
   flex: 1;
   min-height: 64px;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .camera-shutter {
   flex: 2;
+}
+
+/* Capture-confirmation ring + checkmark. Plays once, every time, on a
+   successful photo capture — same animation reused verbatim on the
+   completion screen. Both shapes are generic SVG geometry whose stroke
+   length is measured at runtime (see app.js) and driven purely by a
+   stroke-dashoffset transition, so timing stays exact regardless of the
+   shape drawn.
+
+   A solid badge rather than a dimmed full-screen scrim deliberately —
+   there's no token defined for a translucent overlay tint, and the token
+   list is closed, so this stays within it instead of inventing one. */
+.capture-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.capture-confirm-badge {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.confirm-ring-svg {
+  width: 96px;
+  height: 96px;
+  overflow: visible;
+}
+
+.confirm-ring-svg .confirm-ring,
+.confirm-ring-svg .confirm-check {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.confirm-ring-svg .confirm-ring {
+  stroke-width: 4;
+}
+
+.confirm-ring-svg .confirm-check {
+  stroke-width: 6;
 }
 
 /* Sticky footer */
@@ -553,7 +715,8 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  background: var(--bg-base);
+  border-top: 1px solid var(--border);
   padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -573,24 +736,26 @@ body {
 /* Transition / done screens */
 
 .transition-instructions {
-  font-size: 1.15rem;
-  line-height: 1.5;
-  background: var(--surface);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 18px;
   margin-bottom: 24px;
 }
 
 .transition-logged {
-  color: var(--pass);
-  font-weight: 700;
+  color: var(--text-secondary);
+  font-weight: 600;
   margin-bottom: 20px;
 }
 
 .done-copy {
-  color: var(--text-dim);
-  font-size: 1.05rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
   margin: 8px 0;
 }
 
@@ -599,37 +764,36 @@ body {
 .summary-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 1px;
+  background: var(--border);
   margin: 20px 0;
+  border: 1px solid var(--border);
 }
 
 .stat-tile {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  background: var(--bg-surface);
   padding: 18px;
   text-align: center;
 }
 
 .stat-value {
-  font-size: 2rem;
-  font-weight: 800;
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.9rem;
+  color: var(--text-primary);
 }
 
 .stat-label {
-  color: var(--text-dim);
-  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-size: 13px; /* the app-wide meta-text floor */
   margin-top: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.4px;
 }
 
+/* The open-defects count is one of the four allowed uses of --accent. */
 .stat-tile.stat-fail .stat-value {
-  color: var(--fail);
-}
-
-.stat-tile.stat-ok .stat-value {
-  color: var(--pass);
+  color: var(--accent);
 }
 
 .fail-summary-list {
@@ -640,82 +804,77 @@ body {
 }
 
 .fail-summary-row {
-  background: var(--surface);
-  border: 1px solid var(--fail);
-  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--defect);
+  border-radius: var(--radius);
   padding: 12px 14px;
 }
 
 .fail-summary-station {
   display: block;
-  color: var(--fail);
-  font-size: 0.8rem;
-  font-weight: 700;
+  color: var(--defect);
+  font-size: 13px; /* the app-wide meta-text floor */
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.4px;
   margin-bottom: 4px;
 }
 
 .fail-summary-label {
   display: block;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
 }
 
 .review-buttons {
   margin-top: 24px;
 }
 
-/* Certification stamp */
+/* Completion screen */
 
-.certify-stamp {
-  border: 3px solid var(--pass);
-  border-radius: 16px;
-  padding: 28px 20px;
+.complete-mark-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0 20px;
+}
+
+.complete-mark-wrap .confirm-ring-svg {
+  width: 56px;
+  height: 56px;
+}
+
+.complete-heading {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.5rem;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
   text-align: center;
-  margin: 24px 0;
-  transform: rotate(-1deg);
+  margin: 0 0 6px;
 }
 
-.certify-stamp-check {
-  font-size: 3.5rem;
-  color: var(--pass);
-  line-height: 1;
-  margin-bottom: 8px;
-}
-
-.certify-stamp-title {
-  font-size: 1.3rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--pass);
-  margin-bottom: 14px;
-}
-
-.certify-stamp-line {
-  font-size: 1.05rem;
-  color: var(--text);
-}
-
-.certify-stamp-timestamp {
-  color: var(--text-dim);
-  font-size: 0.85rem;
-  margin-top: 12px;
+.complete-subline {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  text-align: center;
+  margin: 0 0 24px;
 }
 
 /* Drive upload status */
 
 .upload-status {
-  background: var(--surface);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px;
   margin: 20px 0;
 }
 
 .upload-status-line {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-primary);
   margin: 0 0 4px;
 }
 
@@ -724,7 +883,7 @@ body {
 }
 
 .upload-uploading {
-  color: var(--accent);
+  color: var(--text-secondary);
   animation: upload-pulse 1.4s ease-in-out infinite;
 }
 
@@ -733,14 +892,25 @@ body {
   50% { opacity: 0.5; }
 }
 
-.upload-uploaded {
-  color: var(--pass);
-}
-
-.upload-error {
-  color: var(--fail);
-}
-
 .reset-blocked {
   margin-top: 12px;
+}
+
+/* Sound toggle (the only settings control in the app) */
+
+.sound-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min); /* the whole row is the tap target, not just the checkbox */
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.sound-toggle-row input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
 }

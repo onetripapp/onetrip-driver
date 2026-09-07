@@ -5,16 +5,21 @@
 // they're never accidentally cached here — every upload attempt hits the
 // real network.
 
-// v4: added auth.js (shared passcode gate). Deliberately does NOT eagerly
-// cache assets/baseline-photos/** here — that's 17MB+ for one truck
-// already, and growing. Those images pick up caching for free the first
-// time they're actually requested, via the runtime cache-and-store logic
-// in the fetch handler below — no separate cache-warming code needed.
-const CACHE_NAME = 'onetrip-shell-v4';
+// v5: UI restyle added css/tokens.css as a separate stylesheet. The Google
+// Fonts stylesheet/font files themselves are cross-origin and deliberately
+// NOT cached here (same reasoning as the Drive calls below) — offline
+// visits fall back to the system serif/sans in tokens.css's font stacks
+// rather than breaking. Deliberately does NOT eagerly cache
+// assets/baseline-photos/** here — that's 17MB+ for one truck already, and
+// growing. Those images pick up caching for free the first time they're
+// actually requested, via the runtime cache-and-store logic in the fetch
+// handler below — no separate cache-warming code needed.
+const CACHE_NAME = 'onetrip-shell-v5';
 const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
+  './css/tokens.css',
   './css/style.css',
   './js/auth.js',
   './js/data.js',

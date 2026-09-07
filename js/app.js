@@ -16,39 +16,71 @@ let lastRenderedScreen = null;
 // Setup," not "editing," so the Begin button knows which to do.
 let editInfoReturnScreen = null;
 
+// The completion screen's ring+check should play once per actual arrival
+// at that screen, not replay every time the upload status ticks along
+// (uploading -> uploaded) and triggers another same-screen re-render.
+let completeMarkHasPlayed = false;
+
 function render() {
   const scrollY = window.scrollY;
   const sameScreen = inspection.screen === lastRenderedScreen;
   lastRenderedScreen = inspection.screen;
+  if (!sameScreen) completeMarkHasPlayed = false;
 
   root.innerHTML = '';
+  root.appendChild(renderAppHeader());
+
+  let screenNode;
   switch (inspection.screen) {
     case 'setup':
-      root.appendChild(renderSetupScreen());
+      screenNode = renderSetupScreen();
       break;
     case 'phase1':
-      root.appendChild(renderPhase1Screen());
+      screenNode = renderPhase1Screen();
       break;
     case 'transition-1-2':
-      root.appendChild(renderTransitionScreen());
+      screenNode = renderTransitionScreen();
       break;
     case 'phase2':
-      root.appendChild(renderPhase2Screen());
+      screenNode = renderPhase2Screen();
       break;
     case 'phase3':
-      root.appendChild(renderPhase3Screen());
+      screenNode = renderPhase3Screen();
       break;
     case 'summary':
-      root.appendChild(renderSummaryScreen());
+      screenNode = renderSummaryScreen();
       break;
     case 'complete':
-      root.appendChild(renderCompleteScreen());
+      screenNode = renderCompleteScreen();
       break;
     default:
-      root.appendChild(renderSetupScreen());
+      screenNode = renderSetupScreen();
   }
 
+  // The header above stays put across a navigation; only the screen body
+  // slides in — and only on an actual navigation to a new screen, never on
+  // a same-screen re-render (tapping Pass on item 14 of 27).
+  if (!sameScreen) screenNode.classList.add('screen-enter');
+  root.appendChild(screenNode);
+
   window.scrollTo(0, sameScreen ? scrollY : 0);
+}
+
+// Persistent top bar on every screen: the OneTrip wordmark, plus the
+// current truck/date once a driver has entered them. Kept static (no
+// slide animation) while the screen body beneath it transitions.
+function renderAppHeader() {
+  const header = el('div', { class: 'app-header' });
+  header.appendChild(el('span', { class: 'app-header-wordmark', text: 'OneTrip' }));
+
+  if (inspection.truckNumber.trim()) {
+    const meta = el('div', { class: 'app-header-meta' });
+    meta.appendChild(el('span', { text: `Unit ${inspection.truckNumber.trim()}` }));
+    meta.appendChild(el('span', { text: inspection.date }));
+    header.appendChild(meta);
+  }
+
+  return header;
 }
 
 function el(tag, attrs = {}, children = []) {
@@ -144,9 +176,25 @@ function renderSetupScreen() {
     },
   });
   container.appendChild(beginBtn);
+  container.appendChild(renderSoundToggle());
 
   setTimeout(updateBeginButtonState, 0);
   return container;
+}
+
+// The only settings control in the app right now — no dedicated Settings
+// screen exists, so this lives on Setup (the screen every session passes
+// through). Defaults to on.
+function renderSoundToggle() {
+  const row = el('label', { class: 'sound-toggle-row' });
+  const checkbox = el('input', {
+    type: 'checkbox',
+    onchange: (e) => setCaptureSoundEnabled(e.target.checked),
+  });
+  checkbox.checked = isCaptureSoundEnabled();
+  row.appendChild(checkbox);
+  row.appendChild(el('span', { text: 'Capture sound' }));
+  return row;
 }
 
 function updateBeginButtonState() {
@@ -212,7 +260,7 @@ function renderPhaseHeader(title, progress) {
     const metaRow = el('div', { class: 'phase-meta-row' });
     metaRow.appendChild(el('button', {
       class: 'phase-nav-link phase-edit-info-link',
-      text: `✎ Truck ${inspection.truckNumber} — ${inspection.driverName}`,
+      text: `Edit — Truck ${inspection.truckNumber} — ${inspection.driverName}`,
       onclick: () => {
         editInfoReturnScreen = inspection.screen;
         inspection.screen = 'setup';
@@ -224,13 +272,18 @@ function renderPhaseHeader(title, progress) {
   }
 
   header.appendChild(el('h1', { class: 'phase-title', text: title }));
+
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const labelRow = el('div', { class: 'progress-label-row' });
+  labelRow.appendChild(el('span', { text: 'Progress' }));
+  labelRow.appendChild(el('span', { text: `${progress.done} of ${progress.total}` }));
+  header.appendChild(labelRow);
+
   const barWrap = el('div', { class: 'progress-bar-wrap' });
   const bar = el('div', { class: 'progress-bar-fill' });
   bar.style.width = `${pct}%`;
   barWrap.appendChild(bar);
   header.appendChild(barWrap);
-  header.appendChild(el('p', { class: 'progress-label', text: `${progress.done} / ${progress.total} items complete` }));
   return header;
 }
 
@@ -271,7 +324,7 @@ function renderLockedStationCard(stationDef) {
 
   const headerRow = el('div', { class: 'station-header' });
   headerRow.appendChild(el('span', { class: 'station-id', text: `Station ${stationDef.id}` }));
-  headerRow.appendChild(el('span', { class: 'station-status-pill pill-locked', text: '🔒 Locked' }));
+  headerRow.appendChild(el('span', { class: 'station-status-pill pill-locked', text: 'Locked' }));
   card.appendChild(headerRow);
 
   card.appendChild(el('p', { class: 'station-label', text: stationDef.label }));
@@ -289,6 +342,18 @@ function isCertified() {
   return !!inspection.certifiedAt;
 }
 
+// A plain static camera glyph — not an icon library, just one inline SVG
+// shown centered in the empty photo slot before anything's been captured.
+function buildCameraGlyph() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'photo-slot-icon');
+  svg.innerHTML =
+    '<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<circle cx="12" cy="13.5" r="3.25" fill="none" stroke="currentColor" stroke-width="1.5"/>';
+  return svg;
+}
+
 function renderPhotoControl(stationDef, st) {
   const wrap = el('div', { class: 'photo-control' });
 
@@ -304,12 +369,16 @@ function renderPhotoControl(stationDef, st) {
       .catch((err) => console.error('Failed to load stored photo', err));
   } else if (isCertified()) {
     wrap.appendChild(el('p', { class: 'done-copy', text: 'No photo on record.' }));
+  } else {
+    const emptySlot = el('div', { class: 'photo-slot-empty' });
+    emptySlot.appendChild(buildCameraGlyph());
+    wrap.appendChild(emptySlot);
   }
 
   if (!isCertified()) {
     wrap.appendChild(el('button', {
-      class: 'btn btn-secondary btn-block',
-      text: st.photoCaptured ? 'Retake Station Photo' : 'Take Station Photo',
+      class: 'btn btn-primary btn-block',
+      text: st.photoCaptured ? 'Retake Station Photo' : 'Capture Photo',
       onclick: () => openCamera(stationDef.id),
     }));
   }
@@ -393,14 +462,126 @@ async function capturePhoto() {
   const stationId = cameraTargetStationId;
   closeCamera();
 
+  let saved = false;
   try {
     await savePhoto(stationId, dataUri);
     setStationPhotoCaptured(stationId, true);
+    saved = true;
   } catch (err) {
     console.error('Failed to save photo', err);
     alert('Could not save that photo (storage error). Please try taking it again.');
   }
   render();
+
+  // Confirmation feedback only plays on an actual successful save — never
+  // on the error path above, which already has its own alert().
+  if (saved) {
+    playCaptureSound();
+    await showCaptureConfirmation();
+  }
+}
+
+// ---------- Capture confirmation (shared with the completion screen) ----------
+
+// Both shapes are plain SVG path geometry, not icons from a library. The
+// ring is built from two explicit clockwise arcs (sweep-flag 1) rather
+// than a <circle> element, since a circle's own path direction is
+// browser-determined and not guaranteed to draw clockwise.
+function buildConfirmationMark() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 64 64');
+  svg.setAttribute('class', 'confirm-ring-svg');
+
+  const ring = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  ring.setAttribute('class', 'confirm-ring');
+  ring.setAttribute('d', 'M32,6 A26,26 0 0 1 32,58 A26,26 0 0 1 32,6');
+
+  const check = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  check.setAttribute('class', 'confirm-check');
+  check.setAttribute('d', 'M19,33 L28,42 L46,20');
+
+  svg.appendChild(ring);
+  svg.appendChild(check);
+  return svg;
+}
+
+// Draws the ring in over 350ms, then — only once that's finished, not
+// overlapping — strokes the checkmark in over 250ms. Both timings and the
+// sequencing are driven by measuring each path's own real length and
+// transitioning stroke-dashoffset, so this works identically regardless
+// of exactly how the path geometry above is drawn.
+function playConfirmationMark(svg) {
+  const ring = svg.querySelector('.confirm-ring');
+  const check = svg.querySelector('.confirm-check');
+
+  return new Promise((resolve) => {
+    for (const shape of [ring, check]) {
+      const length = shape.getTotalLength();
+      shape.style.strokeDasharray = String(length);
+      shape.style.strokeDashoffset = String(length);
+    }
+
+    requestAnimationFrame(() => {
+      ring.style.transition = 'stroke-dashoffset 350ms ease-out';
+      ring.style.strokeDashoffset = '0';
+
+      setTimeout(() => {
+        check.style.transition = 'stroke-dashoffset 250ms ease-out';
+        check.style.strokeDashoffset = '0';
+        setTimeout(resolve, 250);
+      }, 350);
+    });
+  });
+}
+
+// Brief, non-blocking-to-the-eye confirmation shown after a photo has
+// actually saved — removed automatically once its animation finishes.
+function showCaptureConfirmation() {
+  const overlay = el('div', { class: 'capture-confirm-overlay' });
+  const badge = el('div', { class: 'capture-confirm-badge' });
+  const mark = buildConfirmationMark();
+  badge.appendChild(mark);
+  overlay.appendChild(badge);
+  document.body.appendChild(overlay);
+  return playConfirmationMark(mark).then(() => overlay.remove());
+}
+
+// ---------- Capture sound ----------
+// A single short, quiet tone on successful capture only — nothing on
+// navigation, taps, or errors. Synthesized rather than an audio file, so
+// there's nothing extra to host or load. Toggleable, defaulting to on.
+
+const SOUND_PREF_KEY = 'onetrip-capture-sound-enabled';
+let sharedAudioContext = null;
+
+function isCaptureSoundEnabled() {
+  const raw = localStorage.getItem(SOUND_PREF_KEY);
+  return raw === null ? true : raw === 'true';
+}
+
+function setCaptureSoundEnabled(enabled) {
+  localStorage.setItem(SOUND_PREF_KEY, String(enabled));
+}
+
+function playCaptureSound() {
+  if (!isCaptureSoundEnabled()) return;
+  try {
+    sharedAudioContext = sharedAudioContext || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = sharedAudioContext;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.16);
+  } catch (err) {
+    console.error('Capture sound failed', err);
+  }
 }
 
 // Baseline reference guide: if this truck has a confirmed "gold standard"
@@ -455,8 +636,8 @@ function renderSubItemRow(stationDef, subItemDef, stationState) {
     // Station 11 has no photo at all (no PHOTO-type sub-items) — don't
     // claim photo evidence exists where it doesn't.
     const note = stationNeedsPhoto(stationDef)
-      ? '⚠ Flagged fail — station photo documents this item.'
-      : '⚠ Flagged fail.';
+      ? 'Flagged — station photo documents this item.'
+      : 'Flagged.';
     row.appendChild(el('p', { class: 'fail-flag-note', text: note }));
   }
 
@@ -568,7 +749,7 @@ function renderNumericControl(stationDef, subItemDef, state) {
       if (state.status === 'pass' || state.status === 'fail') {
         wrap.appendChild(el('span', {
           class: `auto-flag-badge auto-flag-${state.status}`,
-          text: state.status === 'pass' ? `✓ Pass — must be ${thresholdRequirement(subItemDef)}` : `✗ Fail — must be ${thresholdRequirement(subItemDef)}`,
+          text: state.status === 'pass' ? `Pass — must be ${thresholdRequirement(subItemDef)}` : `Fail — must be ${thresholdRequirement(subItemDef)}`,
         }));
       } else {
         wrap.appendChild(renderReadOnlyStatus(state.status));
@@ -635,7 +816,7 @@ function renderNumericControl(stationDef, subItemDef, state) {
     if (state.status === 'pass' || state.status === 'fail') {
       wrap.appendChild(el('span', {
         class: `auto-flag-badge auto-flag-${state.status}`,
-        text: state.status === 'pass' ? `✓ Pass — must be ${thresholdRequirement(subItemDef)}` : `✗ Fail — must be ${thresholdRequirement(subItemDef)}`,
+        text: state.status === 'pass' ? `Pass — must be ${thresholdRequirement(subItemDef)}` : `Fail — must be ${thresholdRequirement(subItemDef)}`,
       }));
     }
   } else {
@@ -814,15 +995,15 @@ function renderSummaryScreen() {
     }
     container.appendChild(failList);
   } else {
-    container.appendChild(el('p', { class: 'done-copy', text: '✓ No items flagged — clean inspection.' }));
+    container.appendChild(el('p', { class: 'done-copy', text: 'No items flagged — clean inspection.' }));
   }
 
   const alreadyCertified = isCertified();
   const ready = isInspectionComplete();
   if (!ready && !alreadyCertified) {
     container.appendChild(el('p', {
-      class: 'fail-flag-note',
-      text: '⚠ Something got un-completed after you left a phase (e.g. a cleared field). Review the phase below before certifying.',
+      class: 'done-copy',
+      text: 'Something got un-completed after you left a phase (e.g. a cleared field). Review the phase below before certifying.',
     }));
   }
   const certifyBtn = el('button', {
@@ -857,20 +1038,26 @@ function renderSummaryScreen() {
 function renderCompleteScreen() {
   const container = el('div', { class: 'screen done-screen' });
 
-  const stamp = el('div', { class: 'certify-stamp' });
-  stamp.appendChild(el('div', { class: 'certify-stamp-check', text: '✓' }));
-  stamp.appendChild(el('div', { class: 'certify-stamp-title', text: 'Inspection Certified' }));
-  stamp.appendChild(el('div', { class: 'certify-stamp-line', text: `Truck ${inspection.truckNumber}` }));
-  stamp.appendChild(el('div', { class: 'certify-stamp-line', text: inspection.driverName }));
-  stamp.appendChild(el('div', { class: 'certify-stamp-line', text: inspection.date }));
-  if (inspection.certifiedAt) {
-    stamp.appendChild(el('div', { class: 'certify-stamp-timestamp', text: `Certified ${new Date(inspection.certifiedAt).toLocaleString()}` }));
-  }
-  container.appendChild(stamp);
+  const markWrap = el('div', { class: 'complete-mark-wrap' });
+  const mark = buildConfirmationMark();
+  markWrap.appendChild(mark);
+  container.appendChild(markWrap);
+
+  container.appendChild(el('h1', { class: 'complete-heading', text: 'Inspection Complete' }));
+
+  const stationCount = Object.keys(inspection.stations).length;
+  container.appendChild(el('p', {
+    class: 'complete-subline',
+    text: `Unit ${inspection.truckNumber} · all ${stationCount} stations cleared`,
+  }));
+  container.appendChild(el('p', {
+    class: 'done-copy',
+    text: `${inspection.driverName}${inspection.certifiedAt ? ` — certified ${new Date(inspection.certifiedAt).toLocaleString()}` : ''}`,
+  }));
 
   const failed = getAllFailedItems();
   if (failed.length > 0) {
-    container.appendChild(el('p', { class: 'done-copy', text: `⚠ ${failed.length} item(s) flagged — see summary for details.` }));
+    container.appendChild(el('p', { class: 'done-copy', text: `${failed.length} item(s) flagged — see summary for details.` }));
   }
   container.appendChild(renderUploadStatus());
 
@@ -887,6 +1074,18 @@ function renderCompleteScreen() {
   container.appendChild(renderReviewButtons());
   container.appendChild(renderResetControl());
 
+  if (!completeMarkHasPlayed) {
+    completeMarkHasPlayed = true;
+    requestAnimationFrame(() => playConfirmationMark(mark));
+  } else {
+    // Already played for this visit (this is a same-screen re-render, e.g.
+    // the upload status ticking along) — show it fully drawn, not redrawn.
+    for (const shape of mark.querySelectorAll('.confirm-ring, .confirm-check')) {
+      shape.style.strokeDasharray = '0';
+      shape.style.strokeDashoffset = '0';
+    }
+  }
+
   return container;
 }
 
@@ -895,14 +1094,14 @@ function renderUploadStatus() {
   const status = inspection.uploadStatus;
 
   if (status === 'uploading') {
-    wrap.appendChild(el('p', { class: 'upload-status-line upload-uploading', text: '☁ Uploading to Google Drive…' }));
+    wrap.appendChild(el('p', { class: 'upload-status-line upload-uploading', text: 'Uploading to Google Drive…' }));
   } else if (status === 'uploaded') {
     wrap.appendChild(el('p', {
-      class: 'upload-status-line upload-uploaded',
-      text: `✓ Uploaded to Google Drive${inspection.uploadedAt ? ` — ${new Date(inspection.uploadedAt).toLocaleString()}` : ''}`,
+      class: 'upload-status-line',
+      text: `Uploaded to Google Drive${inspection.uploadedAt ? ` — ${new Date(inspection.uploadedAt).toLocaleString()}` : ''}`,
     }));
   } else if (status === 'error') {
-    wrap.appendChild(el('p', { class: 'upload-status-line upload-error', text: `⚠ Upload failed: ${inspection.uploadError || 'unknown error'}` }));
+    wrap.appendChild(el('p', { class: 'upload-status-line', text: `Upload failed: ${inspection.uploadError || 'unknown error'}` }));
     wrap.appendChild(el('button', {
       class: 'btn btn-secondary btn-block',
       text: 'Retry Upload',
@@ -928,8 +1127,8 @@ function renderResetControl() {
   if (isUploadPending()) {
     const wrap = el('div', { class: 'reset-blocked' });
     wrap.appendChild(el('p', {
-      class: 'fail-flag-note',
-      text: '⚠ This inspection hasn’t finished uploading yet. Starting a new one now would permanently delete it before it’s backed up.',
+      class: 'done-copy',
+      text: 'This inspection hasn’t finished uploading yet. Starting a new one now would permanently delete it before it’s backed up.',
     }));
     wrap.appendChild(el('button', {
       class: 'btn btn-danger btn-block',
