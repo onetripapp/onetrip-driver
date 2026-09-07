@@ -596,7 +596,14 @@ function renderNumericControl(stationDef, subItemDef, state) {
       // No render() here — re-rendering on every keystroke would steal
       // focus from the input. The badge/progress bar catch up on blur.
     },
-    onblur: () => render(),
+    // Deferred one frame: blurring this input is also the exact moment a
+    // phone's on-screen keyboard starts closing. Tearing the DOM down
+    // (render() replaces this very element) synchronously in that instant
+    // is a known mobile Safari/Chrome trigger for snapping scroll straight
+    // to the top of the page. Waiting a frame lets the browser's own
+    // blur/focus bookkeeping finish first, so our render doesn't collide
+    // with it.
+    onblur: () => requestAnimationFrame(() => render()),
   });
   inputRow.appendChild(input);
   if (subItemDef.unit) inputRow.appendChild(el('span', { class: 'numeric-unit', text: subItemDef.unit }));
