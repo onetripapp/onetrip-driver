@@ -1,16 +1,18 @@
 // OneTrip service worker — caches the app shell for basic offline capability.
-// This is a cache-first strategy for the static shell only. Drive API calls
-// and the Google Identity Services script are cross-origin ('cors' response
-// type), and the fetch handler below only caches same-origin ('basic')
-// responses, so they're never accidentally cached here — every upload
-// attempt hits the real network.
+// This is a cache-first strategy for the static shell only. Calls to the
+// Drive-upload Cloud Function are cross-origin ('cors' response type), and
+// the fetch handler below only caches same-origin ('basic') responses, so
+// they're never accidentally cached here — every upload attempt hits the
+// real network.
 
-// v2: added baselineReference.js. Deliberately does NOT eagerly cache
-// assets/baseline-photos/** here — that's 17MB+ for one truck already, and
-// growing. Those images pick up caching for free the first time they're
-// actually requested, via the runtime cache-and-store logic in the fetch
-// handler below — no separate cache-warming code needed.
-const CACHE_NAME = 'onetrip-shell-v2';
+// v3: drive.js rewritten to call the backend Cloud Function instead of
+// Google OAuth directly — no more Google Identity Services script.
+// Deliberately does NOT eagerly cache assets/baseline-photos/** here —
+// that's 17MB+ for one truck already, and growing. Those images pick up
+// caching for free the first time they're actually requested, via the
+// runtime cache-and-store logic in the fetch handler below — no separate
+// cache-warming code needed.
+const CACHE_NAME = 'onetrip-shell-v3';
 const SHELL_FILES = [
   './',
   './index.html',
