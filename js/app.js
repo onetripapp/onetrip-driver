@@ -948,7 +948,70 @@ function renderResetControl() {
   return resetBtn;
 }
 
-render();
+// ---------- Access gate ----------
+//
+// Sits entirely in front of the app's own render() cycle — nothing below
+// this point knows or cares whether a gate exists. Once unlocked, boot()
+// hands off to the normal render() and never runs again this session.
+
+function renderGateScreen() {
+  const container = el('div', { class: 'screen setup-screen' });
+  container.appendChild(el('h1', { class: 'app-title', text: 'OneTrip' }));
+  container.appendChild(el('p', { class: 'app-subtitle', text: 'Enter Access Code' }));
+
+  // A real <form> (not just a styled div) so both a physical Enter key and
+  // a mobile keyboard's "Go"/"Done" action submit natively — a manual
+  // keydown listener on the input alone misses some of those paths.
+  const form = el('form', { class: 'setup-form' });
+  form.appendChild(el('label', { class: 'field-label', for: 'gateCode', text: 'Access Code' }));
+
+  const errorMsg = el('p', { class: 'fail-flag-note', text: 'Incorrect code, try again.' });
+  errorMsg.hidden = true;
+
+  const input = el('input', {
+    id: 'gateCode',
+    class: 'text-input',
+    type: 'password',
+    inputmode: 'numeric',
+    autocomplete: 'off',
+    placeholder: 'Enter code',
+  });
+  form.appendChild(input);
+  form.appendChild(errorMsg);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!input.value) return;
+    const ok = await tryUnlockGate(input.value);
+    if (ok) {
+      boot();
+    } else {
+      errorMsg.hidden = false;
+      input.value = '';
+      input.focus();
+    }
+  });
+
+  form.appendChild(el('button', {
+    type: 'submit',
+    class: 'btn btn-primary btn-block btn-large',
+    text: 'Unlock',
+  }));
+
+  container.appendChild(form);
+  return container;
+}
+
+function boot() {
+  if (isGateUnlocked()) {
+    render();
+  } else {
+    root.innerHTML = '';
+    root.appendChild(renderGateScreen());
+  }
+}
+
+boot();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

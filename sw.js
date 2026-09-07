@@ -5,19 +5,18 @@
 // they're never accidentally cached here — every upload attempt hits the
 // real network.
 
-// v3: drive.js rewritten to call the backend Cloud Function instead of
-// Google OAuth directly — no more Google Identity Services script.
-// Deliberately does NOT eagerly cache assets/baseline-photos/** here —
-// that's 17MB+ for one truck already, and growing. Those images pick up
-// caching for free the first time they're actually requested, via the
-// runtime cache-and-store logic in the fetch handler below — no separate
-// cache-warming code needed.
-const CACHE_NAME = 'onetrip-shell-v3';
+// v4: added auth.js (shared passcode gate). Deliberately does NOT eagerly
+// cache assets/baseline-photos/** here — that's 17MB+ for one truck
+// already, and growing. Those images pick up caching for free the first
+// time they're actually requested, via the runtime cache-and-store logic
+// in the fetch handler below — no separate cache-warming code needed.
+const CACHE_NAME = 'onetrip-shell-v4';
 const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
   './css/style.css',
+  './js/auth.js',
   './js/data.js',
   './js/baselineReference.js',
   './js/photoStore.js',
