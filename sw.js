@@ -29,7 +29,12 @@
 // silently baked in stale content anyway. Bumping again is the only way
 // to give every device — including ones that already installed the
 // poisoned v6 cache — a clean, correct re-fetch.
-const CACHE_NAME = 'onetrip-shell-v7';
+//
+// v8: Edit Truck/Driver Info screen's button label changed to "Start
+// Inspection" (js/app.js) — same reasoning as v6/v7, any text-only change
+// still needs a version bump or it never reaches an already-installed
+// device.
+const CACHE_NAME = 'onetrip-shell-v8';
 const SHELL_FILES = [
   './',
   './index.html',

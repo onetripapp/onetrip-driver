@@ -184,7 +184,7 @@ function renderSetupScreen() {
   const beginBtn = el('button', {
     id: 'beginBtn',
     class: 'btn btn-primary btn-block btn-large',
-    text: isEditing ? 'Save & Continue' : 'Begin Inspection — Phase 1',
+    text: isEditing ? 'Start Inspection' : 'Begin Inspection — Phase 1',
     onclick: () => {
       if (!inspection.truckNumber.trim() || !inspection.driverName.trim()) return;
       inspection.screen = editInfoReturnScreen || 'phase1';
