@@ -22,7 +22,14 @@
 // without it every device that had ever loaded the app before would stay
 // on the v5 cache — and therefore the old dark theme — forever, no matter
 // how many times it reloads.
-const CACHE_NAME = 'onetrip-shell-v6';
+//
+// v7: v6 shipped a real race — GitHub Pages' CDN hadn't finished
+// propagating the new files at the exact moment some devices' install
+// event ran cache.addAll(SHELL_FILES), so those devices' "new" v6 cache
+// silently baked in stale content anyway. Bumping again is the only way
+// to give every device — including ones that already installed the
+// poisoned v6 cache — a clean, correct re-fetch.
+const CACHE_NAME = 'onetrip-shell-v7';
 const SHELL_FILES = [
   './',
   './index.html',
