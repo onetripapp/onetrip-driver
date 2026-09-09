@@ -14,7 +14,15 @@
 // growing. Those images pick up caching for free the first time they're
 // actually requested, via the runtime cache-and-store logic in the fetch
 // handler below — no separate cache-warming code needed.
-const CACHE_NAME = 'onetrip-shell-v5';
+//
+// v6: second UI restyle (white/ink/gold token system, shield-checkmark
+// mark) — every SHELL_FILES entry below changed. This version bump is the
+// only thing that makes any already-installed service worker notice: the
+// browser only re-runs install/activate when sw.js's own bytes change, so
+// without it every device that had ever loaded the app before would stay
+// on the v5 cache — and therefore the old dark theme — forever, no matter
+// how many times it reloads.
+const CACHE_NAME = 'onetrip-shell-v6';
 const SHELL_FILES = [
   './',
   './index.html',
