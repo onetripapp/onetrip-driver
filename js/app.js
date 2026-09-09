@@ -66,12 +66,31 @@ function render() {
   window.scrollTo(0, sameScreen ? scrollY : 0);
 }
 
-// Persistent top bar on every screen: the OneTrip wordmark, plus the
-// current truck/date once a driver has entered them. Kept static (no
-// slide animation) while the screen body beneath it transitions.
+// The OneTrip mark — a shield outline containing a checkmark, both drawn
+// as simple line strokes. This exact geometry is reused for the PWA home-
+// screen icon (icons/icon.svg) — the two must stay visually identical.
+function buildShieldCheckmarkIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 30 34');
+  svg.innerHTML =
+    '<path d="M15 2 L28 7 V17 C28 25 22 30 15 33 C8 30 2 25 2 17 V7 Z" fill="none" stroke="currentColor" stroke-width="1.8"/>' +
+    '<path d="M9 17 L14 22 L22 12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
+  return svg;
+}
+
+// Persistent top bar on every screen: the shield-checkmark mark + OneTrip
+// wordmark as one lockup, plus the current truck/date once a driver has
+// entered them. Kept static (no slide animation) while the screen body
+// beneath it transitions.
 function renderAppHeader() {
   const header = el('div', { class: 'app-header' });
-  header.appendChild(el('span', { class: 'app-header-wordmark', text: 'OneTrip' }));
+
+  const brand = el('div', { class: 'app-header-brand' });
+  const iconWrap = el('span', { class: 'app-header-icon' });
+  iconWrap.appendChild(buildShieldCheckmarkIcon());
+  brand.appendChild(iconWrap);
+  brand.appendChild(el('span', { class: 'app-header-wordmark', text: 'OneTrip' }));
+  header.appendChild(brand);
 
   if (inspection.truckNumber.trim()) {
     const meta = el('div', { class: 'app-header-meta' });
@@ -103,8 +122,7 @@ function renderSetupScreen() {
   const container = el('div', { class: 'screen setup-screen' });
   const isEditing = editInfoReturnScreen !== null;
 
-  container.appendChild(el('h1', { class: 'app-title', text: 'OneTrip' }));
-  container.appendChild(el('p', { class: 'app-subtitle', text: isEditing ? 'Edit Truck / Driver Info' : 'Pre-Trip Inspection' }));
+  container.appendChild(el('h1', { class: 'app-title', text: isEditing ? 'Edit Truck / Driver Info' : 'Pre-Trip Inspection' }));
   if (isEditing) {
     container.appendChild(el('p', { class: 'done-copy', text: 'Your inspection progress is untouched — this only changes the truck number and driver name.' }));
   }
@@ -1162,8 +1180,7 @@ function renderResetControl() {
 
 function renderGateScreen() {
   const container = el('div', { class: 'screen setup-screen' });
-  container.appendChild(el('h1', { class: 'app-title', text: 'OneTrip' }));
-  container.appendChild(el('p', { class: 'app-subtitle', text: 'Enter Access Code' }));
+  container.appendChild(el('h1', { class: 'app-title', text: 'Enter Access Code' }));
 
   // A real <form> (not just a styled div) so both a physical Enter key and
   // a mobile keyboard's "Go"/"Done" action submit natively — a manual
@@ -1214,6 +1231,7 @@ function boot() {
     resumeStalledUploadIfNeeded();
   } else {
     root.innerHTML = '';
+    root.appendChild(renderAppHeader());
     root.appendChild(renderGateScreen());
   }
 }

@@ -1,5 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0b0f14"/>
-  <rect x="40" y="40" width="432" height="432" rx="72" fill="#151b23" stroke="#ffcc00" stroke-width="8"/>
-  <path d="M160 270 L225 335 L360 180" fill="none" stroke="#ffcc00" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Colors here are literal hex, not a var() reference: an external .svg
+       file has no access to css/tokens.css. Keep these in sync by hand
+       with the ink token (#161616) and ink-on token (#FFFFFF) if either
+       ever changes. (XML comments disallow two adjacent hyphen
+       characters, which is why the token names above omit their usual
+       leading punctuation.) -->
+  <rect width="512" height="512" rx="96" fill="#161616"/>
+  <g transform="translate(123.6 106) scale(8.82)" fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15 2 L28 7 V17 C28 25 22 30 15 33 C8 30 2 25 2 17 V7 Z" stroke-width="1.8"/>
+    <path d="M9 17 L14 22 L22 12" stroke-width="2.4"/>
+  </g>
 </svg>

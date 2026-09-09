@@ -30,19 +30,43 @@ body {
 .app-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   max-width: 640px;
   margin: 0 auto;
   width: 100%;
   padding: 16px 16px 0;
 }
 
+/* Icon + wordmark as a single lockup, top-left of every screen. */
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  background: var(--ink);
+  color: var(--ink-on);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-header-icon svg {
+  width: 15px;
+  height: 17px;
+}
+
 .app-header-wordmark {
   font-family: var(--font-heading);
   font-variant: small-caps;
-  color: var(--accent);
+  color: var(--ink);
   font-size: 1rem;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
 }
 
 .app-header-meta {
@@ -153,8 +177,8 @@ body {
 }
 
 .btn-primary {
-  background: var(--accent);
-  color: var(--accent-on);
+  background: var(--ink);
+  color: var(--ink-on);
 }
 
 .btn-primary:disabled {
@@ -213,7 +237,7 @@ body {
 }
 
 .text-input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
 
@@ -472,24 +496,20 @@ body {
   filter: brightness(0.92);
 }
 
-/* Pass and N/A carry no meaning worth a color — an item that isn't a
-   defect is just neutral, inverted to show it's the selected state. */
+/* No per-item status carries its own color — Pass, Fail, and N/A are all
+   just neutral ink, inverted to show which is selected. The single gold
+   accent is reserved for the aggregate open-defect count elsewhere on
+   screen, never for an individual toggle. */
 .toggle-btn.toggle-pass.active,
+.toggle-btn.toggle-fail.active,
 .toggle-btn.toggle-na.active {
-  background: var(--text-primary);
-  border-color: var(--text-primary);
-  color: var(--bg-base);
-}
-
-/* The only colored toggle state in the app — an actual recorded defect. */
-.toggle-btn.toggle-fail.active {
-  background: var(--defect);
-  border-color: var(--defect);
-  color: var(--text-primary);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ink-on);
 }
 
 .fail-flag-note {
-  color: var(--defect);
+  color: var(--text-secondary);
   font-size: 0.85rem;
   line-height: 1.5;
   margin: 10px 0 0;
@@ -511,8 +531,8 @@ body {
 }
 
 .readonly-status-pill.readonly-fail {
-  color: var(--defect);
-  border-color: var(--defect);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .readonly-status-pill.readonly-na {
@@ -550,7 +570,7 @@ body {
 }
 
 .numeric-input:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
 
@@ -574,7 +594,7 @@ body {
 }
 
 .auto-flag-badge.auto-flag-fail {
-  color: var(--defect);
+  color: var(--text-primary);
 }
 
 /* Live camera capture overlay */
@@ -614,9 +634,8 @@ body {
   pointer-events: none;
 }
 
-/* A camera/permission failure is a system error, not an inspection
-   defect — --defect stays reserved for actual failed checklist items, so
-   this stays neutral like every other non-defect warning in the app. */
+/* A camera/permission failure is a system error, not an inspection defect
+   — stays neutral, same as every other non-defect warning in the app. */
 .camera-error {
   position: absolute;
   top: 20px;
@@ -695,7 +714,7 @@ body {
 .confirm-ring-svg .confirm-ring,
 .confirm-ring-svg .confirm-check {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--ink);
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -791,7 +810,7 @@ body {
   letter-spacing: 0.4px;
 }
 
-/* The open-defects count is one of the four allowed uses of --accent. */
+/* The open-defects count is one of the three allowed uses of --accent. */
 .stat-tile.stat-fail .stat-value {
   color: var(--accent);
 }
@@ -805,14 +824,14 @@ body {
 
 .fail-summary-row {
   background: var(--bg-surface);
-  border: 1px solid var(--defect);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   padding: 12px 14px;
 }
 
 .fail-summary-station {
   display: block;
-  color: var(--defect);
+  color: var(--text-primary);
   font-size: 13px; /* the app-wide meta-text floor */
   font-weight: 600;
   text-transform: uppercase;
@@ -911,6 +930,6 @@ body {
 .sound-toggle-row input {
   width: 22px;
   height: 22px;
-  accent-color: var(--accent);
+  accent-color: var(--ink);
   flex-shrink: 0;
 }
