@@ -40,7 +40,10 @@
 // can still be satisfied by an edge cache that hasn't purged yet after a
 // deploy. Explicitly forcing cache: 'reload' on the install fetches (see
 // below) bypasses that instead of relying on timing/luck.
-const CACHE_NAME = 'onetrip-shell-v9';
+//
+// v10: removed the capture-sound feature and its Setup-screen toggle
+// entirely (js/app.js, css/style.css) — no more settings control at all.
+const CACHE_NAME = 'onetrip-shell-v10';
 const SHELL_FILES = [
   './',
   './index.html',

@@ -914,22 +914,3 @@ body {
 .reset-blocked {
   margin-top: 12px;
 }
-
-/* Sound toggle (the only settings control in the app) */
-
-.sound-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: var(--tap-min); /* the whole row is the tap target, not just the checkbox */
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  cursor: pointer;
-}
-
-.sound-toggle-row input {
-  width: 22px;
-  height: 22px;
-  accent-color: var(--ink);
-  flex-shrink: 0;
-}

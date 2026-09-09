@@ -194,25 +194,9 @@ function renderSetupScreen() {
     },
   });
   container.appendChild(beginBtn);
-  container.appendChild(renderSoundToggle());
 
   setTimeout(updateBeginButtonState, 0);
   return container;
-}
-
-// The only settings control in the app right now — no dedicated Settings
-// screen exists, so this lives on Setup (the screen every session passes
-// through). Defaults to on.
-function renderSoundToggle() {
-  const row = el('label', { class: 'sound-toggle-row' });
-  const checkbox = el('input', {
-    type: 'checkbox',
-    onchange: (e) => setCaptureSoundEnabled(e.target.checked),
-  });
-  checkbox.checked = isCaptureSoundEnabled();
-  row.appendChild(checkbox);
-  row.appendChild(el('span', { text: 'Capture sound' }));
-  return row;
 }
 
 function updateBeginButtonState() {
@@ -494,7 +478,6 @@ async function capturePhoto() {
   // Confirmation feedback only plays on an actual successful save — never
   // on the error path above, which already has its own alert().
   if (saved) {
-    playCaptureSound();
     await showCaptureConfirmation();
   }
 }
@@ -562,44 +545,6 @@ function showCaptureConfirmation() {
   overlay.appendChild(badge);
   document.body.appendChild(overlay);
   return playConfirmationMark(mark).then(() => overlay.remove());
-}
-
-// ---------- Capture sound ----------
-// A single short, quiet tone on successful capture only — nothing on
-// navigation, taps, or errors. Synthesized rather than an audio file, so
-// there's nothing extra to host or load. Toggleable, defaulting to on.
-
-const SOUND_PREF_KEY = 'onetrip-capture-sound-enabled';
-let sharedAudioContext = null;
-
-function isCaptureSoundEnabled() {
-  const raw = localStorage.getItem(SOUND_PREF_KEY);
-  return raw === null ? true : raw === 'true';
-}
-
-function setCaptureSoundEnabled(enabled) {
-  localStorage.setItem(SOUND_PREF_KEY, String(enabled));
-}
-
-function playCaptureSound() {
-  if (!isCaptureSoundEnabled()) return;
-  try {
-    sharedAudioContext = sharedAudioContext || new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = sharedAudioContext;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.16);
-  } catch (err) {
-    console.error('Capture sound failed', err);
-  }
 }
 
 // Baseline reference guide: if this truck has a confirmed "gold standard"
