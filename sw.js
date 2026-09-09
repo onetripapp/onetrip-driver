@@ -34,7 +34,13 @@
 // Inspection" (js/app.js) — same reasoning as v6/v7, any text-only change
 // still needs a version bump or it never reaches an already-installed
 // device.
-const CACHE_NAME = 'onetrip-shell-v8';
+//
+// v9: v8 raced CDN propagation too (same as v6/v7 before it) — this keeps
+// happening because a plain cache.addAll() below is a normal fetch, which
+// can still be satisfied by an edge cache that hasn't purged yet after a
+// deploy. Explicitly forcing cache: 'reload' on the install fetches (see
+// below) bypasses that instead of relying on timing/luck.
+const CACHE_NAME = 'onetrip-shell-v9';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -51,9 +57,17 @@ const SHELL_FILES = [
   './icons/icon.svg',
 ];
 
+// Deliberately not cache.addAll(SHELL_FILES) — that uses a plain fetch
+// per file, which an edge cache that hasn't purged yet after a deploy can
+// still satisfy with stale content (this bit v6 through v8, each of which
+// looked "fine" moments later purely by luck of propagation timing).
+// cache: 'reload' forces every one of these requests past any HTTP
+// caching layer, all the way to the origin.
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(SHELL_FILES.map((file) => fetch(file, { cache: 'reload' }).then((res) => cache.put(file, res))))
+    )
   );
   self.skipWaiting();
 });
