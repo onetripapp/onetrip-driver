@@ -116,13 +116,6 @@ body {
   color: var(--text-primary);
 }
 
-.app-subtitle {
-  color: var(--text-secondary);
-  font-size: 1.05rem;
-  line-height: 1.5;
-  margin: 4px 0 32px;
-}
-
 .phase-title {
   font-family: var(--font-heading);
   font-weight: 500;

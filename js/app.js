@@ -984,9 +984,9 @@ function renderSummaryScreen() {
       inspection.screen = 'complete';
       saveInspection();
       render();
-      // Kicked off right here, in the same click handler, so the browser
-      // still counts this as a direct user gesture — the Google sign-in
-      // popup can get silently blocked otherwise.
+      // Certification and upload happen together — there's no separate
+      // "upload later" step, so this fires immediately, right after the
+      // record is certified and locked.
       startUpload();
     },
   });
@@ -1015,7 +1015,7 @@ function renderCompleteScreen() {
   }));
   container.appendChild(el('p', {
     class: 'done-copy',
-    text: `${inspection.driverName}${inspection.certifiedAt ? ` — certified ${new Date(inspection.certifiedAt).toLocaleString()}` : ''}`,
+    text: `${inspection.driverName}${inspection.certifiedAt ? ` — certified ${formatCertifiedAt(inspection.certifiedAt)}` : ''}`,
   }));
 
   const failed = getAllFailedItems();

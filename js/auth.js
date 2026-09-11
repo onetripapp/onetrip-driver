@@ -25,14 +25,6 @@ async function sha256Hex(text) {
     .join('');
 }
 
-// Console helper for producing GATE_HASH's value from a new passcode
-// without hand-computing SHA-256. Not called anywhere in the app itself.
-async function generateGateHash(code) {
-  const hash = await sha256Hex(code);
-  console.log(hash);
-  return hash;
-}
-
 function isGateUnlocked() {
   return localStorage.getItem(ACCESS_KEY) === 'true';
 }
@@ -44,4 +36,15 @@ async function tryUnlockGate(candidate) {
     return true;
   }
   return false;
+}
+
+// ---------- Dev tooling — not called by the app ----------
+//
+// Console helper for producing GATE_HASH's value from a new passcode
+// without hand-computing SHA-256 by hand. Run it yourself in the browser
+// console when rotating the passcode; nothing in the app calls this.
+async function generateGateHash(code) {
+  const hash = await sha256Hex(code);
+  console.log(hash);
+  return hash;
 }
