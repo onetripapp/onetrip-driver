@@ -43,7 +43,12 @@
 //
 // v10: removed the capture-sound feature and its Setup-screen toggle
 // entirely (js/app.js, css/style.css) — no more settings control at all.
-const CACHE_NAME = 'onetrip-shell-v10';
+//
+// v11: cleanup pass — dead .app-subtitle CSS rule removed, stale
+// Google-sign-in comment in app.js rewritten, completion screen's
+// certified-at timestamp now uses formatCertifiedAt() (js/app.js,
+// css/style.css, js/auth.js).
+const CACHE_NAME = 'onetrip-shell-v11';
 const SHELL_FILES = [
   './',
   './index.html',
