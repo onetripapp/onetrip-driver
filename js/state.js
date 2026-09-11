@@ -8,6 +8,13 @@
 
 const STORAGE_KEY = 'onetrip-inspection-v1';
 
+// One beta fleet today — this becomes a real per-fleet identifier once a
+// second fleet customer exists (see the TODO(multi-tenant) note in
+// onetrip-drive-function/index.js). Tagged into every export and upload
+// from day one so beta data is never ambiguous about which fleet it came
+// from, even while there's only one.
+const FLEET_ID = 'default';
+
 function todayISO() {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -292,6 +299,7 @@ function buildInspectionExport() {
     };
   }
   return {
+    fleetId: FLEET_ID,
     truckNumber: inspection.truckNumber,
     driverName: inspection.driverName,
     date: inspection.date,
@@ -345,6 +353,7 @@ function buildInspectionSummaryText(exportData) {
 
   lines.push('ONETRIP INSPECTION SUMMARY');
   lines.push('============================');
+  lines.push(`Fleet:        ${exportData.fleetId}`);
   lines.push(`Truck:        ${exportData.truckNumber}`);
   lines.push(`Driver:       ${exportData.driverName}`);
   lines.push(`Date:         ${exportData.date}`);

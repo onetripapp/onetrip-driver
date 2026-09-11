@@ -48,7 +48,11 @@
 // Google-sign-in comment in app.js rewritten, completion screen's
 // certified-at timestamp now uses formatCertifiedAt() (js/app.js,
 // css/style.css, js/auth.js).
-const CACHE_NAME = 'onetrip-shell-v11';
+//
+// v12: every export/upload now tags fleetId (js/state.js, js/drive.js) —
+// pairs with the backend's move to a hardcoded, drive.file-scoped root
+// folder (onetrip-drive-function/index.js, deployed separately).
+const CACHE_NAME = 'onetrip-shell-v12';
 const SHELL_FILES = [
   './',
   './index.html',

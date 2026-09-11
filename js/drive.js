@@ -58,6 +58,7 @@ async function uploadFileToBackend(filename, contentBase64, mimeType) {
         'X-App-Secret': APP_SHARED_SECRET,
       },
       body: JSON.stringify({
+        fleetId: FLEET_ID,
         truckNumber: inspection.truckNumber.trim(),
         driverName: inspection.driverName.trim(),
         date: inspection.date,
