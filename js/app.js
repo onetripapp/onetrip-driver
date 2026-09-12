@@ -1417,4 +1417,26 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch((err) => console.error('SW registration failed', err));
   });
+
+  // THE GAP THIS CLOSES: sw.js's skipWaiting() + clients.claim() make a new
+  // service worker take control of this page in the background, but that
+  // alone does NOT refresh anything already loaded — this exact page
+  // instance keeps running whatever JS/CSS it already fetched under
+  // whichever service worker controlled it at load time. Without this
+  // listener, anyone who already had an older version installed needs to
+  // reload the app TWICE after any deploy to actually see it: once
+  // (invisibly, in the background) for the new service worker to finish
+  // installing and claim control, and a second time to actually load the
+  // new bytes. This has been true of every version bump this app has ever
+  // shipped, not just the most recent one — it just happened to surface
+  // now. Reloading automatically the instant a new controller takes over
+  // closes that gap for good: one visit is enough, from here on.
+  // `alreadyReloaded` guards against a theoretical repeat controllerchange
+  // firing more than once and reload-looping.
+  let alreadyReloadedForNewServiceWorker = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (alreadyReloadedForNewServiceWorker) return;
+    alreadyReloadedForNewServiceWorker = true;
+    window.location.reload();
+  });
 }

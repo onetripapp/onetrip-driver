@@ -107,7 +107,26 @@
 // that button was its only content; Phase 2/3's footer is now just the
 // primary CTA. The Transition screen's own inline back button is a
 // separate, unrelated control and was left untouched.
-const CACHE_NAME = 'onetrip-shell-v19';
+//
+// v20: closed a real gap in the update mechanism itself, present since v6:
+// skipWaiting() + clients.claim() below make a new service worker take
+// control in the background, but that alone never refreshes a page that's
+// already loaded and running — anyone with an older version installed
+// needed to reload TWICE after any deploy to actually see it (once,
+// invisibly, for the new worker to finish activating; a second time to
+// actually load the new bytes). This is very likely why v19's header/back-
+// button change and even the already-shipped v17/v18 scroll-jump/shake
+// fixes could still appear "not applied" or "reverted" on a device that
+// had an older version installed before visiting again — the code was
+// never actually reverted, the page just hadn't reloaded a second time
+// yet. js/app.js now listens for controllerchange and reloads
+// automatically the instant a new worker actually takes over, so one visit
+// is enough from here on. This fix closes the gap for every future deploy;
+// it can't retroactively help anyone still stuck on v19 or earlier reach
+// v20 itself (that transition is the one time the old two-reload behavior
+// still applies) — a single hard refresh gets them onto v20, after which
+// this self-heals permanently.
+const CACHE_NAME = 'onetrip-shell-v20';
 const SHELL_FILES = [
   './',
   './index.html',
