@@ -129,21 +129,26 @@ function renderSetupScreen() {
 
   const form = el('div', { class: 'setup-form' });
 
+  // A dropdown, not free text: see KNOWN_TRUCKS in data.js for why — in
+  // short, a truck not on that list simply can't start an inspection,
+  // which is intentional (no near-duplicate Drive folders from typos).
   const truckLabel = el('label', { class: 'field-label', for: 'truckNumber', text: 'Truck Number' });
-  const truckInput = el('input', {
+  const truckInput = el('select', {
     id: 'truckNumber',
     class: 'text-input',
-    type: 'text',
-    inputmode: 'text',
-    autocomplete: 'off',
-    placeholder: 'e.g. 4471',
-    value: inspection.truckNumber,
-    oninput: (e) => {
+    onchange: (e) => {
       inspection.truckNumber = e.target.value;
       saveInspection();
       updateBeginButtonState();
     },
-  });
+  }, [
+    el('option', { value: '', disabled: true, text: 'Select truck number' }),
+    ...KNOWN_TRUCKS.map((truck) => el('option', { value: truck, text: truck })),
+  ]);
+  // A <select>'s current selection is a live DOM property, not something
+  // reflected by an HTML attribute — el()'s generic attribute-setting path
+  // can't express it, so it's set directly here instead.
+  truckInput.value = inspection.truckNumber;
 
   const driverLabel = el('label', { class: 'field-label', for: 'driverName', text: 'Driver Name' });
   const driverInput = el('input', {

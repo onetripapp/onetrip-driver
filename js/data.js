@@ -17,6 +17,23 @@
 // thresholdType ('max' | 'maxExclusive' | 'min' | 'range') + thresholdMax/thresholdMin,
 // and N/A remains available as an override.
 
+// ---------------------------------------------------------------------------
+// Known trucks — the Setup screen's truck dropdown only ever shows these.
+// Deliberately no free-text entry and no "other" option: a truck that isn't
+// in this list can't start an inspection. That's intentional, not a
+// limitation — "826016", "826016 " (trailing space), and "82601" (typo) all
+// look identical to a person but would create three separate Drive folders
+// for the same physical truck, scattering its inspection history. Requiring
+// a truck to be added here on purpose closes that off entirely, rather than
+// relying on drivers to type carefully.
+//
+// To add a truck later: add another string to this array. Nothing else
+// needs to change.
+const KNOWN_TRUCKS = [
+  '826016', // Dan's Mack Pinnacle
+];
+// ---------------------------------------------------------------------------
+
 const PHASE1_ZONES = [
   {
     zone: 1,

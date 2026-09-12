@@ -52,7 +52,12 @@
 // v12: every export/upload now tags fleetId (js/state.js, js/drive.js) —
 // pairs with the backend's move to a hardcoded, drive.file-scoped root
 // folder (onetrip-drive-function/index.js, deployed separately).
-const CACHE_NAME = 'onetrip-shell-v12';
+//
+// v13: Setup screen's truck number field changed from free text to a
+// dropdown restricted to KNOWN_TRUCKS (js/data.js, js/app.js) — no more
+// near-duplicate Drive folders from typos/trailing spaces on the same
+// truck.
+const CACHE_NAME = 'onetrip-shell-v13';
 const SHELL_FILES = [
   './',
   './index.html',
