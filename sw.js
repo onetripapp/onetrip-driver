@@ -126,7 +126,27 @@
 // v20 itself (that transition is the one time the old two-reload behavior
 // still applies) — a single hard refresh gets them onto v20, after which
 // this self-heals permanently.
-const CACHE_NAME = 'onetrip-shell-v20';
+//
+// v21: replaced full-screen re-renders on Pass/Fail/N/A taps with targeted,
+// in-place DOM updates (updateAfterToggleTap in js/app.js) — this is the
+// actual structural fix for the jump/shake bug pattern, not another patch
+// on top of v17/v18's timing-based fixes. A toggle tap no longer calls
+// render() at all; it patches only the specific elements a status change
+// can affect (the tapped row's toggle buttons and fail-note, its station's
+// completion pill, the next station's lock state, the phase progress bar,
+// the footer CTA) and leaves every other station, the header, and
+// everything else in the DOM completely untouched. Since nothing unrelated
+// to the tap is destroyed anymore, there's nothing left for a mobile
+// browser's focus-loss or transition-interruption behavior to react to —
+// v17/v18 are still in place underneath this (numeric/text field blur and
+// screen navigation still go through the old full render() path
+// unchanged), but toggle taps, by far the most frequent interaction in the
+// app, no longer touch that path at all. See the extensive comments on
+// renderToggleControl/renderSubItemRow/renderStationCard and
+// updateAfterToggleTap itself in js/app.js — those two sides must be kept
+// in sync by hand whenever either one changes, which is the real ongoing
+// cost of this approach and is called out explicitly at both ends.
+const CACHE_NAME = 'onetrip-shell-v21';
 const SHELL_FILES = [
   './',
   './index.html',

@@ -377,7 +377,10 @@ function renderPhaseHeader(title, progress, backTarget) {
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
   const labelRow = el('div', { class: 'progress-label-row' });
   labelRow.appendChild(el('span', { text: 'Progress' }));
-  labelRow.appendChild(el('span', { text: `${progress.done} of ${progress.total}` }));
+  // class (not just position) so updatePhaseHeaderProgress() below can
+  // find this specific span directly, instead of relying on it always
+  // being the row's last child.
+  labelRow.appendChild(el('span', { class: 'progress-count', text: `${progress.done} of ${progress.total}` }));
   header.appendChild(labelRow);
 
   const barWrap = el('div', { class: 'progress-bar-wrap' });
@@ -395,7 +398,11 @@ function renderStationCard(stationDef) {
 
   const st = inspection.stations[stationDef.id];
   const complete = isStationComplete(stationDef.id);
-  const card = el('div', { class: `station-card${complete ? ' station-complete' : ''}` });
+  // id is load-bearing, not decorative: updateAfterToggleTap() looks up a
+  // station's own card by this exact id, both to patch its complete/
+  // incomplete pill in place and to detect + replace a NEXT station's card
+  // the moment it transitions from locked to unlocked.
+  const card = el('div', { id: `station-card-${stationDef.id}`, class: `station-card${complete ? ' station-complete' : ''}` });
 
   const headerRow = el('div', { class: 'station-header' });
   headerRow.appendChild(el('span', { class: 'station-id', text: `Station ${stationDef.id}` }));
@@ -421,7 +428,10 @@ function renderStationCard(stationDef) {
 // to preview. Forces the driver through stations in physical-walk order
 // instead of filling out a whole phase from one spot.
 function renderLockedStationCard(stationDef) {
-  const card = el('div', { class: 'station-card station-locked' });
+  // Same id convention as the unlocked card above — updateAfterToggleTap()
+  // checks for the 'station-locked' class on this exact element to know
+  // whether the next station still needs swapping in once it unlocks.
+  const card = el('div', { id: `station-card-${stationDef.id}`, class: 'station-card station-locked' });
 
   const headerRow = el('div', { class: 'station-header' });
   headerRow.appendChild(el('span', { class: 'station-id', text: `Station ${stationDef.id}` }));
@@ -768,9 +778,18 @@ function buildCameraOverlay(stationId) {
   return overlay;
 }
 
+// KEEP IN SYNC WITH updateAfterToggleTap() FURTHER DOWN. This function (and
+// renderToggleControl below it) build a sub-item row from scratch on every
+// full render() pass; updateAfterToggleTap() instead patches an
+// ALREADY-RENDERED row in place after a Pass/Fail/N/A tap, without going
+// through render() at all — see that function's own comment for why. The
+// row's data-row-key attribute is how it finds this exact row again. If you
+// change the fail-note's markup/text/class here, you must change it in
+// updateAfterToggleTap() too, or a live tap and a fresh page load will
+// disagree about what the same 'fail' state looks like.
 function renderSubItemRow(stationDef, subItemDef, stationState) {
   const state = stationState.subItems.find((s) => s.id === subItemDef.id);
-  const row = el('div', { class: 'subitem-row' });
+  const row = el('div', { class: 'subitem-row', 'data-row-key': `${stationDef.id}:${subItemDef.id}` });
 
   const labelRow = el('div', { class: 'subitem-label-row' });
   labelRow.appendChild(el('span', { class: 'subitem-label', text: subItemDef.label }));
@@ -806,6 +825,13 @@ function renderReadOnlyStatus(status) {
   });
 }
 
+// KEEP IN SYNC WITH updateAfterToggleTap() FURTHER DOWN — see the comment
+// on renderSubItemRow above for what that means and why. Specifically: the
+// 'active' class and the data-value each button carries are how
+// updateAfterToggleTap() re-derives which button should look selected
+// after a tap, without rebuilding any of these buttons. If the active-state
+// class name, the option list, or the data attributes below ever change,
+// updateAfterToggleTap() must change to match.
 function renderToggleControl(stationDef, subItemDef, state) {
   if (isCertified()) {
     return renderReadOnlyStatus(state.status);
@@ -822,13 +848,160 @@ function renderToggleControl(stationDef, subItemDef, state) {
     toggles.appendChild(el('button', {
       class: `toggle-btn ${opt.cls}${active ? ' active' : ''}`,
       text: opt.label,
+      'data-station-id': stationDef.id,
+      'data-subitem-id': subItemDef.id,
+      'data-value': opt.value,
       onclick: () => {
         setSubItemStatus(stationDef.id, subItemDef.id, opt.value);
-        render();
+        updateAfterToggleTap(stationDef, subItemDef);
       },
     }));
   }
   return toggles;
+}
+
+// THE ACTUAL POINT OF THIS FUNCTION: a Pass/Fail/N/A tap is by far the
+// most frequent interaction in the whole app (tapped dozens of times per
+// inspection), and until now every single one of those taps went through
+// render(), tearing down and rebuilding the ENTIRE current screen — every
+// other station, the header, the footer, all of it — just to reflect one
+// sub-item's new status. That's the actual root of the scroll-jump/shake
+// bug pattern (see render()'s own comment): destroying and recreating
+// elements the driver isn't even interacting with is what gave mobile
+// browsers' focus/transition handling something to react to. This function
+// instead patches ONLY the handful of elements whose appearance can
+// actually depend on one sub-item's status changing, and touches nothing
+// else in the DOM at all — so there's nothing left for that bug class to
+// attach to for this interaction, structurally, not just symptomatically.
+//
+// KEEP IN SYNC WITH renderToggleControl/renderSubItemRow/renderStationCard
+// ABOVE — see their own comments. This function does NOT go through
+// render(), so it has no access to a fresh, correct DOM tree the way a
+// full render does; every element it touches has to already exist with a
+// stable, addressable identity (an id, or a data- attribute) that those
+// render functions are responsible for providing. If a future change
+// there adds a new visual consequence of a sub-item's status (not just the
+// four handled below), that new consequence must be added here too, or it
+// will only ever show up after the next full-screen navigation instead of
+// immediately.
+function updateAfterToggleTap(stationDef, subItemDef) {
+  const state = inspection.stations[stationDef.id].subItems.find((s) => s.id === subItemDef.id);
+
+  // 1. The toggle buttons themselves — all three siblings for this exact
+  //    sub-item, since only one can be active at a time.
+  document
+    .querySelectorAll(`.toggle-btn[data-station-id="${stationDef.id}"][data-subitem-id="${subItemDef.id}"]`)
+    .forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.value === state.status);
+    });
+
+  // 2. The "Flagged" note directly below this row — inserted/removed
+  //    entirely, not just restyled, since it doesn't exist at all outside
+  //    the 'fail' state. Must match renderSubItemRow's own fail-note markup.
+  const row = document.querySelector(`[data-row-key="${stationDef.id}:${subItemDef.id}"]`);
+  if (row) {
+    let note = row.querySelector('.fail-flag-note');
+    if (state.status === 'fail' && !note) {
+      const noteText = stationNeedsPhoto(stationDef)
+        ? 'Flagged — station photo documents this item.'
+        : 'Flagged.';
+      row.appendChild(el('p', { class: 'fail-flag-note', text: noteText }));
+    } else if (state.status !== 'fail' && note) {
+      note.remove();
+    }
+  }
+
+  // 3. This station's own header pill/border. Idempotent and cheap enough
+  //    to just always reapply, rather than tracking whether it actually
+  //    changed — a station can only go incomplete -> complete from a
+  //    toggle tap (never the reverse; only clearing a numeric field can do
+  //    that, a different code path), so this only ever has to move in one
+  //    direction, but reapplying it unconditionally is simpler and no less
+  //    correct than tracking that.
+  const card = document.getElementById(`station-card-${stationDef.id}`);
+  if (card) {
+    const complete = isStationComplete(stationDef.id);
+    card.classList.toggle('station-complete', complete);
+    const pill = card.querySelector('.station-status-pill');
+    if (pill) {
+      pill.textContent = complete ? 'Complete' : 'Incomplete';
+      pill.classList.toggle('pill-complete', complete);
+      pill.classList.toggle('pill-incomplete', !complete);
+    }
+  }
+
+  // 4. The next station in this phase's walk order may have just
+  //    unlocked. renderStationCard() already knows how to render either
+  //    state correctly — this just detects whether a swap is actually
+  //    needed (the next card is still showing the locked placeholder, but
+  //    isStationUnlocked() now says it shouldn't be) and, if so, replaces
+  //    that ONE card wholesale. This is the one case here that's a real
+  //    subtree replacement rather than an in-place patch, but it's still
+  //    scoped to a single station, not the screen.
+  const order = getPhaseStationOrder(stationDef.id);
+  const idx = order.findIndex((s) => s.id === stationDef.id);
+  const nextDef = order[idx + 1];
+  if (nextDef) {
+    const nextCard = document.getElementById(`station-card-${nextDef.id}`);
+    if (nextCard && nextCard.classList.contains('station-locked') && isStationUnlocked(nextDef.id)) {
+      nextCard.replaceWith(renderStationCard(nextDef));
+    }
+  }
+
+  // 5. The phase header's progress bar/count — changes on every single
+  //    tap, no exceptions.
+  updatePhaseHeaderProgress();
+
+  // 6. The footer's primary CTA (enabled state + label) — depends on
+  //    overall phase completeness, which any tap can flip either way.
+  updatePhaseFooterCta();
+}
+
+// Shared by the CURRENT screen only — this file has exactly one phase
+// screen mounted at a time, so an unscoped querySelector for these is
+// unambiguous. Returns null on non-phase screens (nothing to update).
+function currentPhaseProgress() {
+  if (inspection.screen === 'phase1') return phase1Progress();
+  if (inspection.screen === 'phase2') return phase2Progress();
+  if (inspection.screen === 'phase3') return phase3Progress();
+  return null;
+}
+
+// KEEP IN SYNC WITH renderPhaseHeader ABOVE — same pct/text computation,
+// just applied to the already-rendered .progress-bar-fill/.progress-count
+// instead of building them fresh.
+function updatePhaseHeaderProgress() {
+  const progress = currentPhaseProgress();
+  if (!progress) return;
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+  const countEl = document.querySelector('.progress-count');
+  if (countEl) countEl.textContent = `${progress.done} of ${progress.total}`;
+  const fillEl = document.querySelector('.progress-bar-fill');
+  if (fillEl) fillEl.style.width = `${pct}%`;
+}
+
+// KEEP IN SYNC WITH updatePhaseFooterCta() BELOW — this is the single
+// source of truth for "is this phase's primary CTA enabled, and what does
+// it say" so the full-render footer functions (renderPhase1Footer, etc.)
+// and the targeted update below can't drift apart on that specific
+// question. Each phase's actual onclick behavior stays defined separately
+// in its own footer function, since that part never needs a targeted
+// update (footers only ever change via a full render triggered by real
+// navigation).
+function phaseFooterCtaState(screen) {
+  if (screen === 'phase1') return { ready: isPhase1Complete(), readyText: 'Proceed to Phase 2' };
+  if (screen === 'phase2') return { ready: isPhase2Complete(), readyText: 'Proceed to Phase 3' };
+  if (screen === 'phase3') return { ready: isPhase3Complete(), readyText: 'Review & Certify Inspection' };
+  return null;
+}
+
+function updatePhaseFooterCta() {
+  const state = phaseFooterCtaState(inspection.screen);
+  if (!state) return;
+  const btn = document.querySelector('.sticky-footer .btn-primary');
+  if (!btn) return;
+  btn.disabled = !state.ready;
+  btn.textContent = state.ready ? state.readyText : 'Complete all items to proceed';
 }
 
 // Threshold sub-items (mode: 'numeric') auto-compute pass/fail from the
@@ -1019,10 +1192,10 @@ function renderPhase1Footer() {
   // in that state.
   if (isCertified()) return null;
   const footer = el('div', { class: 'sticky-footer' });
-  const ready = isPhase1Complete();
+  const { ready, readyText } = phaseFooterCtaState('phase1');
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
-    text: ready ? 'Proceed to Phase 2' : 'Complete all items to proceed',
+    text: ready ? readyText : 'Complete all items to proceed',
     onclick: () => {
       if (!isPhase1Complete()) return;
       inspection.screen = 'transition-1-2';
@@ -1052,10 +1225,10 @@ function renderPhase2Footer() {
   // that was this footer's only content, so there's nothing left here.
   if (isCertified()) return null;
   const footer = el('div', { class: 'sticky-footer' });
-  const ready = isPhase2Complete();
+  const { ready, readyText } = phaseFooterCtaState('phase2');
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
-    text: ready ? 'Proceed to Phase 3' : 'Complete all items to proceed',
+    text: ready ? readyText : 'Complete all items to proceed',
     onclick: () => {
       if (!isPhase2Complete()) return;
       seedDotNumberFromDoorStation();
@@ -1074,10 +1247,10 @@ function renderPhase3Footer() {
   // that was this footer's only content, so there's nothing left here.
   if (isCertified()) return null;
   const footer = el('div', { class: 'sticky-footer' });
-  const ready = isPhase3Complete();
+  const { ready, readyText } = phaseFooterCtaState('phase3');
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
-    text: ready ? 'Review & Certify Inspection' : 'Complete all items to proceed',
+    text: ready ? readyText : 'Complete all items to proceed',
     onclick: () => {
       if (!isPhase3Complete()) return;
       inspection.screen = 'summary';
