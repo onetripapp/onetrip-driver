@@ -481,7 +481,24 @@ body {
   letter-spacing: 0.4px;
   cursor: pointer;
   touch-action: manipulation;
-  transition: transform 200ms ease, filter 200ms ease, background 200ms ease;
+  /* Deliberately no transition here (unlike .btn elsewhere) — every tap on
+     a toggle button causes render() to tear this exact element down and
+     replace it about one animation frame later (see render()'s comment in
+     js/app.js), and a brand-new replacement element never transitions in
+     from a prior state anyway (nothing to ease FROM), so a transition here
+     could only ever animate the :active press/release below. A 200ms eased
+     release is ~12x longer than that one-frame gap, so it was always
+     guaranteed to get cut off mid-flight the moment the deferred re-render
+     fires — which is exactly what caused a small but very noticeable
+     "shake" on every single Pass/Fail/N/A tap once that deferred re-render
+     landed. Before that fix, the rebuild happened synchronously in the
+     same tick as the tap, so this transition never got a chance to
+     visibly start at all — the shake isn't new behavior, just a
+     previously-invisible one becoming visible once the bigger scroll-jump
+     bug stopped masking it. Keeping press/release instant removes the
+     only thing here a doomed-to-be-replaced element could show mid-
+     animation, rather than trying to out-race a rebuild timing that
+     varies by device. */
 }
 
 .toggle-btn:active {

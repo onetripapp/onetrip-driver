@@ -81,7 +81,22 @@
 // by calling render() straight from a click/blur handler. Removed the two
 // now-redundant manual requestAnimationFrame wrappers this same bug's
 // prior fix had added to just the numeric/text inputs' onblur.
-const CACHE_NAME = 'onetrip-shell-v17';
+//
+// v18: v17 fixed the big scroll jump but surfaced a smaller side effect —
+// tapping Pass/Fail/N/A caused a slight visible "shake." Root cause: the
+// toggle button's native :active press/release has a 200ms eased
+// transition (css/style.css), but v17 also means that exact button gets
+// destroyed and replaced by a fresh element about one frame (~16ms) after
+// every tap. The 200ms release was always going to be cut off mid-flight
+// once a rebuild landed that close behind it — before v17, the rebuild
+// happened synchronously in the same tick as the tap, too fast for the
+// transition to ever visibly start, which is why this was never seen
+// before even though the transition/rebuild pairing was already there.
+// Removed the transition on .toggle-btn specifically (press/release now
+// instant) — confirmed via getComputedStyle that a freshly-created
+// replacement element never benefits from it anyway, since there's no
+// prior state on that specific node to ease in from.
+const CACHE_NAME = 'onetrip-shell-v18';
 const SHELL_FILES = [
   './',
   './index.html',
