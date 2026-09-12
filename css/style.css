@@ -240,7 +240,7 @@ body {
   position: sticky;
   top: 0;
   background: var(--bg-base);
-  padding: 16px 0 12px;
+  padding: 10px 0 8px;
   z-index: 5;
 }
 
@@ -249,7 +249,53 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
+}
+
+/* Back chevron sits inline with the phase title (see renderPhaseHeader in
+   app.js) rather than in its own row — the title stays the dominant visual
+   element, the button is just small and to its left. */
+.phase-title-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.phase-back-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Tap target still meets --tap-min (glove-and-sunlight environment, every
+     interactive element) even though the chevron drawn inside it is small
+     and visually unobtrusive — the two aren't the same measurement. */
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  margin-left: -18px; /* offsets the tap target's own width so the icon still reads as flush against the screen's left edge, without shrinking the hit area below --tap-min */
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.phase-back-btn:active {
+  color: var(--text-primary);
+}
+
+.phase-back-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Scoped to .phase-header specifically — .phase-title is also used bare on
+   the Transition and Summary screens (see app.js), which should keep their
+   own current size; only the checklist phase header gets more compact. */
+.phase-header .phase-title {
+  font-size: 1.2rem;
+  margin: 0;
 }
 
 .phase-nav-link {

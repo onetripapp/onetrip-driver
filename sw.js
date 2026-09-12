@@ -96,7 +96,18 @@
 // instant) — confirmed via getComputedStyle that a freshly-created
 // replacement element never benefits from it anyway, since there's no
 // prior state on that specific node to ease in from.
-const CACHE_NAME = 'onetrip-shell-v18';
+//
+// v19: reclaimed vertical space for the checklist itself — shrunk the
+// sticky phase-header's padding/title size (scoped to .phase-header so the
+// same bare .phase-title on the Transition/Summary screens is unaffected),
+// and removed the old certified-only "Back to Summary" / normal "Back to
+// Phase N" button from the bottom sticky-footer entirely, replacing it
+// with a small chevron in the header itself (resolveHeaderBackTarget in
+// js/app.js). The footer is now null (no bar at all) once certified, since
+// that button was its only content; Phase 2/3's footer is now just the
+// primary CTA. The Transition screen's own inline back button is a
+// separate, unrelated control and was left untouched.
+const CACHE_NAME = 'onetrip-shell-v19';
 const SHELL_FILES = [
   './',
   './index.html',

@@ -266,10 +266,10 @@ function updateBeginButtonState() {
 
 // ---------- Phase screens (shared renderer) ----------
 
-function renderPhaseScreen(title, zones, progress, footer) {
+function renderPhaseScreen(title, zones, progress, backTarget, footer) {
   const container = el('div', { class: 'screen phase-screen' });
 
-  container.appendChild(renderPhaseHeader(title, progress));
+  container.appendChild(renderPhaseHeader(title, progress, backTarget));
 
   const list = el('div', { class: 'zone-list' });
   for (const zone of zones) {
@@ -280,17 +280,20 @@ function renderPhaseScreen(title, zones, progress, footer) {
   }
   container.appendChild(list);
 
-  container.appendChild(footer);
+  // No footer at all once certified (see renderPhase1Footer etc.) — the
+  // old certified-only bottom bar was nothing but a back button, which now
+  // lives in the header instead, so there's nothing left to show here.
+  if (footer) container.appendChild(footer);
   return container;
 }
 
 function renderPhase1Screen() {
-  return renderPhaseScreen('Phase 1 — Engine Off', PHASE1_ZONES, phase1Progress(), renderPhase1Footer());
+  return renderPhaseScreen('Phase 1 — Engine Off', PHASE1_ZONES, phase1Progress(), null, renderPhase1Footer());
 }
 
 function renderPhase2Screen() {
   const backTarget = { screen: 'phase1', label: 'Back to Phase 1' };
-  return renderPhaseScreen('Phase 2 — Full Exterior Walk', PHASE2_ZONES, phase2Progress(), renderPhase2Footer(backTarget));
+  return renderPhaseScreen('Phase 2 — Full Exterior Walk', PHASE2_ZONES, phase2Progress(), backTarget, renderPhase2Footer());
 }
 
 // Phase 3 has no zone grouping (it's one location, in-cab), so it renders
@@ -298,7 +301,7 @@ function renderPhase2Screen() {
 function renderPhase3Screen() {
   const backTarget = { screen: 'phase2', label: 'Back to Phase 2' };
   const container = el('div', { class: 'screen phase-screen' });
-  container.appendChild(renderPhaseHeader('Phase 3 — In-Cab Finale', phase3Progress()));
+  container.appendChild(renderPhaseHeader('Phase 3 — In-Cab Finale', phase3Progress(), backTarget));
 
   const list = el('div', { class: 'zone-list' });
   for (const station of PHASE3_STATIONS) {
@@ -306,16 +309,38 @@ function renderPhase3Screen() {
   }
   container.appendChild(list);
 
-  container.appendChild(renderPhase3Footer(backTarget));
+  const footer = renderPhase3Footer();
+  if (footer) container.appendChild(footer);
   return container;
 }
 
-function renderPhaseHeader(title, progress) {
+// A simple stroke-based "<" — same inline-SVG, currentColor-stroke style as
+// buildCameraGlyph()/buildShieldCheckmarkIcon(), not a text glyph, so it
+// renders identically to the app's other icons rather than depending on a
+// device's own font for an arrow character.
+function buildChevronBackIcon() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'phase-back-icon');
+  svg.innerHTML = '<path d="M15 5 L7 12 L15 19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+  return svg;
+}
+
+// Once certified, every phase screen is a locked, read-only review — the
+// header's back chevron always goes to Summary in that state regardless of
+// which phase is showing, the same destination the old certified-only
+// bottom bar used to go to. Otherwise it's whatever normal previous-phase
+// target the caller passed (null for Phase 1, which has nothing before it).
+function resolveHeaderBackTarget(normalBackTarget) {
+  if (isCertified()) return { screen: 'summary', label: 'Back to Summary' };
+  return normalBackTarget || null;
+}
+
+function renderPhaseHeader(title, progress, backTarget) {
   const header = el('div', { class: 'phase-header' });
 
-  // Once certified the record is locked and none of this applies — the
-  // phase screens already switch to a read-only "Back to Summary" footer
-  // in that state, so these links would be redundant/misleading there.
+  // Once certified the record is locked and none of this applies — editing
+  // truck/driver info on a locked record would be meaningless.
   if (!isCertified()) {
     const metaRow = el('div', { class: 'phase-meta-row' });
     metaRow.appendChild(el('button', {
@@ -331,7 +356,23 @@ function renderPhaseHeader(title, progress) {
     header.appendChild(metaRow);
   }
 
-  header.appendChild(el('h1', { class: 'phase-title', text: title }));
+  const titleRow = el('div', { class: 'phase-title-row' });
+  const resolvedBackTarget = resolveHeaderBackTarget(backTarget);
+  if (resolvedBackTarget) {
+    const backBtn = el('button', {
+      class: 'phase-back-btn',
+      'aria-label': resolvedBackTarget.label,
+      onclick: () => {
+        inspection.screen = resolvedBackTarget.screen;
+        saveInspection();
+        render();
+      },
+    });
+    backBtn.appendChild(buildChevronBackIcon());
+    titleRow.appendChild(backBtn);
+  }
+  titleRow.appendChild(el('h1', { class: 'phase-title', text: title }));
+  header.appendChild(titleRow);
 
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
   const labelRow = el('div', { class: 'progress-label-row' });
@@ -971,22 +1012,12 @@ function renderTextControl(stationDef, subItemDef, state) {
   return wrap;
 }
 
-function renderReadOnlyFooter() {
-  const footer = el('div', { class: 'sticky-footer' });
-  footer.appendChild(el('button', {
-    class: 'btn btn-secondary btn-block',
-    text: 'Back to Summary',
-    onclick: () => {
-      inspection.screen = 'summary';
-      saveInspection();
-      render();
-    },
-  }));
-  return footer;
-}
-
 function renderPhase1Footer() {
-  if (isCertified()) return renderReadOnlyFooter();
+  // Once certified, the old bottom bar here was nothing but a "Back to
+  // Summary" button — that now lives in the header instead (see
+  // renderPhaseHeader/resolveHeaderBackTarget), so there's no footer at all
+  // in that state.
+  if (isCertified()) return null;
   const footer = el('div', { class: 'sticky-footer' });
   const ready = isPhase1Complete();
   const btn = el('button', {
@@ -1016,10 +1047,11 @@ function renderBackButton(backTarget) {
   });
 }
 
-function renderPhase2Footer(backTarget) {
-  if (isCertified()) return renderReadOnlyFooter();
+function renderPhase2Footer() {
+  // Back now lives in the header (see renderPhaseHeader) — once certified,
+  // that was this footer's only content, so there's nothing left here.
+  if (isCertified()) return null;
   const footer = el('div', { class: 'sticky-footer' });
-  footer.appendChild(renderBackButton(backTarget));
   const ready = isPhase2Complete();
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
@@ -1037,10 +1069,11 @@ function renderPhase2Footer(backTarget) {
   return footer;
 }
 
-function renderPhase3Footer(backTarget) {
-  if (isCertified()) return renderReadOnlyFooter();
+function renderPhase3Footer() {
+  // Back now lives in the header (see renderPhaseHeader) — once certified,
+  // that was this footer's only content, so there's nothing left here.
+  if (isCertified()) return null;
   const footer = el('div', { class: 'sticky-footer' });
-  footer.appendChild(renderBackButton(backTarget));
   const ready = isPhase3Complete();
   const btn = el('button', {
     class: 'btn btn-primary btn-block btn-large',
