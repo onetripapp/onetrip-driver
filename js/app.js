@@ -21,7 +21,60 @@ let editInfoReturnScreen = null;
 // (uploading -> uploaded) and triggers another same-screen re-render.
 let completeMarkHasPlayed = false;
 
+// --- render scheduling ---------------------------------------------------
+//
+// THE ACTUAL ROOT CAUSE of this app's recurring scroll-jump bug (fixed
+// twice before — 7a27437, fe67313 — and it kept coming back): tearing down
+// and rebuilding the DOM (root.innerHTML = '' below) is inherently
+// destructive to whatever element currently has focus. On mobile Safari/
+// Chrome, destroying the focused element in the SAME synchronous tick as
+// the click/tap/blur event that focused it is a known trigger for the
+// browser's own "scroll the next-focused thing into view" behavior firing
+// independently of — and often *after* — this file's own scrollY-restore
+// logic below, so it wins and the page visibly snaps.
+//
+// Both prior fixes patched this correctly, but only where someone happened
+// to be looking: 7a27437 added the scrollY-restore machinery (necessary,
+// but doesn't stop the race by itself); fe67313 discovered that deferring
+// render() by one requestAnimationFrame — so the browser finishes its own
+// focus/blur bookkeeping before this code demolishes the DOM — actually
+// prevents the race, but applied that ONLY to one numeric input's onblur.
+// Every OTHER control that calls render() straight from a click handler
+// (the Pass/Fail/N/A toggles chief among them — by far the most-tapped
+// control in the whole app) was left exactly as exposed as before, which
+// is exactly why this kept resurfacing in a new spot instead of staying
+// fixed.
+//
+// Rather than hunting down and re-patching every individual button (and
+// leaving the same trap for the next new one), the deferral now lives
+// inside render() itself: EVERY call to render(), from anywhere, present
+// or future, is automatically deferred to the next frame — never runs
+// synchronously in the same tick as whatever DOM event triggered it. A new
+// button added later that calls render() straight from onclick gets this
+// for free; there is no longer a "remember to defer this one" step to
+// forget. `renderScheduled` coalesces multiple render() calls that land in
+// the same frame (e.g. a state write plus a follow-up call) into one
+// actual rebuild, so rapid taps don't queue up redundant re-renders.
+//
+// Manual test for anyone touching this function: scroll partway down a
+// long station list (Phase 1 or 2), tap several Pass/Fail/N/A buttons in a
+// row across different sub-items, and confirm the page never jumps. If it
+// does, the regression is almost certainly a new render() call site that
+// bypasses this scheduler somehow (e.g. mutating root's DOM directly
+// instead of going through render()) — it should NOT be "fixed" by adding
+// another local scrollY save/restore.
+let renderScheduled = false;
+
 function render() {
+  if (renderScheduled) return;
+  renderScheduled = true;
+  requestAnimationFrame(() => {
+    renderScheduled = false;
+    performRender();
+  });
+}
+
+function performRender() {
   const scrollY = window.scrollY;
   const sameScreen = inspection.screen === lastRenderedScreen;
   lastRenderedScreen = inspection.screen;
@@ -836,14 +889,9 @@ function renderNumericControl(stationDef, subItemDef, state) {
       // No render() here — re-rendering on every keystroke would steal
       // focus from the input. The badge/progress bar catch up on blur.
     },
-    // Deferred one frame: blurring this input is also the exact moment a
-    // phone's on-screen keyboard starts closing. Tearing the DOM down
-    // (render() replaces this very element) synchronously in that instant
-    // is a known mobile Safari/Chrome trigger for snapping scroll straight
-    // to the top of the page. Waiting a frame lets the browser's own
-    // blur/focus bookkeeping finish first, so our render doesn't collide
-    // with it.
-    onblur: () => requestAnimationFrame(() => render()),
+    // render() itself now always defers to the next frame (see its own
+    // comment) — no manual requestAnimationFrame needed here anymore.
+    onblur: () => render(),
   });
   inputRow.appendChild(input);
   if (subItemDef.unit) inputRow.appendChild(el('span', { class: 'numeric-unit', text: subItemDef.unit }));
@@ -913,7 +961,8 @@ function renderTextControl(stationDef, subItemDef, state) {
       // No render() here — same reasoning as the numeric control: re-rendering
       // on every keystroke would steal focus from the input.
     },
-    onblur: () => requestAnimationFrame(() => render()),
+    // render() itself now always defers to the next frame — see its comment.
+    onblur: () => render(),
   });
   inputRow.appendChild(input);
   wrap.appendChild(inputRow);

@@ -73,7 +73,15 @@
 // the number is captured once instead of twice; Station 12 now reuses that
 // same mode: 'text' control and is pre-filled from it at the Phase 2 -> 3
 // transition (js/data.js, js/state.js, js/app.js).
-const CACHE_NAME = 'onetrip-shell-v16';
+//
+// v17: fixed the recurring scroll-jump-on-tap bug at its actual root cause
+// instead of patching another individual button — render() itself now
+// always defers its DOM teardown/rebuild to the next animation frame (see
+// its own comment in js/app.js), so no future control can reintroduce this
+// by calling render() straight from a click/blur handler. Removed the two
+// now-redundant manual requestAnimationFrame wrappers this same bug's
+// prior fix had added to just the numeric/text inputs' onblur.
+const CACHE_NAME = 'onetrip-shell-v17';
 const SHELL_FILES = [
   './',
   './index.html',
