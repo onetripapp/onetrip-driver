@@ -31,6 +31,7 @@
 // needs to change.
 const KNOWN_TRUCKS = [
   '826016', // Dan's Mack Pinnacle
+  'TEST001', // obviously-fake test truck — keeps synthetic test inspections out of a real truck's Drive folder
 ];
 // ---------------------------------------------------------------------------
 

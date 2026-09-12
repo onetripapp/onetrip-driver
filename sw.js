@@ -57,7 +57,11 @@
 // dropdown restricted to KNOWN_TRUCKS (js/data.js, js/app.js) — no more
 // near-duplicate Drive folders from typos/trailing spaces on the same
 // truck.
-const CACHE_NAME = 'onetrip-shell-v13';
+//
+// v14: added TEST001 as a second KNOWN_TRUCKS entry (js/data.js) — an
+// obviously-fake truck so future synthetic tests don't have to write into
+// 826016's real Drive folder.
+const CACHE_NAME = 'onetrip-shell-v14';
 const SHELL_FILES = [
   './',
   './index.html',
