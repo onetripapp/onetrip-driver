@@ -401,6 +401,12 @@ function renderPhotoControl(stationDef, st) {
 
 let cameraStream = null;
 let cameraTargetStationId = null;
+// The active video track, only if THIS device/browser exposes real torch
+// control on it (mainly Android Chrome with a rear LED flash) — null on
+// anything that doesn't, which the flash button reflects honestly instead
+// of pretending to work. Reset on every open/close.
+let cameraTorchTrack = null;
+let torchOn = false;
 
 // A locked phone or a backgrounded app mid-photo is a realistic scenario in
 // the field — without this the camera stream would keep running (draining
@@ -416,6 +422,20 @@ function openCamera(stationId) {
   document.body.appendChild(overlay);
   document.addEventListener('visibilitychange', handleCameraVisibilityChange);
 
+  // Full-frame exterior shots (the whole trailer, long shots) need
+  // landscape, but the rest of the app stays portrait-locked (see
+  // manifest.json's orientation: "portrait-primary") — so only unlock
+  // rotation while the camera itself is open, and only where the Screen
+  // Orientation API actually supports it. This is a standalone-app-only
+  // capability (no Fullscreen API call needed here since this app already
+  // runs in "standalone" display mode per the manifest); iOS Safari has
+  // never implemented this API at all, so this is a silent no-op there —
+  // consistent with iOS also just ignoring the manifest's portrait lock,
+  // so neither side of this pairing does anything on iOS today.
+  if (screen.orientation && screen.orientation.unlock) {
+    try { screen.orientation.unlock(); } catch (err) { /* not supported here — ignore */ }
+  }
+
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     overlay.querySelector('.camera-error').textContent =
       'Camera capture is not supported in this browser.';
@@ -428,6 +448,22 @@ function openCamera(stationId) {
       cameraStream = stream;
       const video = overlay.querySelector('video');
       video.srcObject = stream;
+
+      // Flash/torch support is real but inconsistent: mainly Android Chrome
+      // exposes it for a rear camera with an actual LED flash; iOS Safari
+      // has no torch API at all. There's also no usable "screen flash"
+      // substitute here the way there is for front-camera selfie apps —
+      // this app always uses the rear camera (facingMode: environment), and
+      // the screen faces the opposite direction from whatever it's
+      // photographing, so lighting up the screen wouldn't illuminate the
+      // subject at all. Detect real support per-device and tell the driver
+      // plainly either way, rather than a control that silently does
+      // nothing on unsupported hardware.
+      const videoTrack = stream.getVideoTracks()[0];
+      const caps = videoTrack && videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+      cameraTorchTrack = caps.torch ? videoTrack : null;
+      torchOn = false;
+      updateFlashButtonUI();
     })
     .catch((err) => {
       overlay.querySelector('.camera-error').textContent =
@@ -441,9 +477,51 @@ function closeCamera() {
     cameraStream.getTracks().forEach((track) => track.stop());
     cameraStream = null;
   }
+  cameraTorchTrack = null;
+  torchOn = false;
   const overlay = document.getElementById('camera-overlay');
   if (overlay) overlay.remove();
   cameraTargetStationId = null;
+
+  // Re-lock back to the app's normal portrait orientation now that the
+  // camera's closed — the matching unlock() is in openCamera() above.
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('portrait-primary').catch(() => { /* not supported here — ignore */ });
+  }
+}
+
+// Toggles the real hardware torch (only ever called when cameraTorchTrack
+// is non-null — see the flash button's disabled state in buildCameraOverlay).
+function toggleTorch() {
+  if (!cameraTorchTrack) return;
+  const next = !torchOn;
+  cameraTorchTrack.applyConstraints({ advanced: [{ torch: next }] })
+    .then(() => {
+      torchOn = next;
+      updateFlashButtonUI();
+    })
+    .catch((err) => {
+      console.error('Failed to toggle flash', err);
+      torchOn = false;
+      updateFlashButtonUI();
+    });
+}
+
+// The camera overlay is appended straight to document.body and never goes
+// through the app's render() cycle, so its own controls are updated by
+// direct DOM mutation instead — same pattern as updateBeginButtonState().
+function updateFlashButtonUI() {
+  const btn = document.getElementById('camera-flash-toggle');
+  if (!btn) return;
+  if (!cameraTorchTrack) {
+    btn.textContent = 'Flash unavailable';
+    btn.disabled = true;
+    btn.classList.remove('flash-on');
+  } else {
+    btn.textContent = torchOn ? 'Flash: On' : 'Flash: Off';
+    btn.disabled = false;
+    btn.classList.toggle('flash-on', torchOn);
+  }
 }
 
 const CAMERA_CAPTURE_MAX_EDGE = 1600; // px — plenty for evidence photos, keeps files small
@@ -579,6 +657,17 @@ function buildCameraOverlay(stationId) {
 
   const controls = el('div', { class: 'camera-controls' });
   controls.appendChild(el('button', { class: 'btn btn-secondary camera-cancel', text: 'Cancel', onclick: closeCamera }));
+  // Starts disabled/"unavailable" and is corrected once the stream resolves
+  // and torch support is actually known (see openCamera) — never claims
+  // support it hasn't confirmed yet.
+  controls.appendChild(el('button', {
+    id: 'camera-flash-toggle',
+    class: 'btn btn-secondary camera-flash-toggle',
+    type: 'button',
+    text: 'Flash unavailable',
+    disabled: true,
+    onclick: toggleTorch,
+  }));
   controls.appendChild(el('button', { class: 'btn btn-primary camera-shutter', text: 'Capture', onclick: capturePhoto }));
   overlay.appendChild(controls);
 
@@ -596,6 +685,8 @@ function renderSubItemRow(stationDef, subItemDef, stationState) {
 
   if (subItemDef.mode === 'numeric') {
     row.appendChild(renderNumericControl(stationDef, subItemDef, state));
+  } else if (subItemDef.mode === 'text') {
+    row.appendChild(renderTextControl(stationDef, subItemDef, state));
   } else {
     row.appendChild(renderToggleControl(stationDef, subItemDef, state));
   }
@@ -794,6 +885,43 @@ function renderNumericControl(stationDef, subItemDef, state) {
   return wrap;
 }
 
+// Plain typed value (mode: 'text') — no OCR, no parsing, just a small text
+// field alongside the usual Pass/Fail/N/A toggle. Same shape as
+// renderNumericControl's no-threshold branch: the typed value and the
+// toggle are two separate facts (what the number is, vs. whether the
+// placard itself is legible/present), captured side by side.
+function renderTextControl(stationDef, subItemDef, state) {
+  const wrap = el('div', { class: 'numeric-control' });
+
+  if (isCertified()) {
+    const valueText = state.value !== null && state.value !== undefined && state.value !== '' ? state.value : 'Not recorded';
+    wrap.appendChild(el('span', { class: 'numeric-readonly-value', text: valueText }));
+    wrap.appendChild(renderReadOnlyStatus(state.status));
+    return wrap;
+  }
+
+  const inputRow = el('div', { class: 'numeric-input-row' });
+  const input = el('input', {
+    type: 'text',
+    inputmode: 'numeric',
+    class: 'numeric-input',
+    placeholder: subItemDef.placeholder || 'e.g. 1234567',
+    value: state.value === null || state.value === undefined ? '' : state.value,
+    oninput: (e) => {
+      const raw = e.target.value;
+      setSubItemValue(stationDef.id, subItemDef.id, raw === '' ? null : raw);
+      // No render() here — same reasoning as the numeric control: re-rendering
+      // on every keystroke would steal focus from the input.
+    },
+    onblur: () => requestAnimationFrame(() => render()),
+  });
+  inputRow.appendChild(input);
+  wrap.appendChild(inputRow);
+  wrap.appendChild(renderToggleControl(stationDef, subItemDef, state));
+
+  return wrap;
+}
+
 function renderReadOnlyFooter() {
   const footer = el('div', { class: 'sticky-footer' });
   footer.appendChild(el('button', {
@@ -849,6 +977,7 @@ function renderPhase2Footer(backTarget) {
     text: ready ? 'Proceed to Phase 3' : 'Complete all items to proceed',
     onclick: () => {
       if (!isPhase2Complete()) return;
+      seedDotNumberFromDoorStation();
       inspection.screen = 'phase3';
       saveInspection();
       render();

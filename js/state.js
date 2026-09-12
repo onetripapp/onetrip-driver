@@ -252,6 +252,22 @@ function setStationPhotoCaptured(stationId, captured) {
   saveInspection();
 }
 
+// Station 12 (In-Cab, Phase 3) asks the driver to reconfirm the same DOT
+// number/company name already photographed and typed once at Station
+// 1-door (driver door, Phase 1) — this pre-fills it instead of asking
+// twice. Called once, at the Phase 2 -> 3 transition button (the one point
+// this app's forced walk order guarantees 1-door is already complete and
+// Station 12 hasn't been touched yet); the field stays fully editable
+// afterward for a correction, and this never overwrites a value already
+// there.
+function seedDotNumberFromDoorStation() {
+  const doorSubItem = inspection.stations['1-door'].subItems.find((s) => s.id === '1-door-dot-number');
+  const dashSubItem = inspection.stations['12'].subItems.find((s) => s.id === '12-dot-number');
+  if (doorSubItem.value && !dashSubItem.value) {
+    setSubItemValue('12', '12-dot-number', doorSubItem.value);
+  }
+}
+
 function certifyInspection() {
   inspection.certifiedAt = new Date().toISOString();
   saveInspection();

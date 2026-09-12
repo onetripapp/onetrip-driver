@@ -61,7 +61,19 @@
 // v14: added TEST001 as a second KNOWN_TRUCKS entry (js/data.js) — an
 // obviously-fake truck so future synthetic tests don't have to write into
 // 826016's real Drive folder.
-const CACHE_NAME = 'onetrip-shell-v14';
+//
+// v15: Dan's first-day beta bug fixes — flash/torch toggle on the camera
+// overlay with honest "unavailable" feedback where torch isn't supported,
+// landscape orientation unlock/relock scoped to the camera overlay only,
+// and clarified driver/passenger/both-sides wording on stations 1a, 2a,
+// 3b (js/app.js, css/style.css, js/data.js).
+//
+// v16: same beta bug-fix pass, part 2 — new Station 1-door (Phase 1,
+// driver door DOT number placard: photo + typed value, mode: 'text') so
+// the number is captured once instead of twice; Station 12 now reuses that
+// same mode: 'text' control and is pre-filled from it at the Phase 2 -> 3
+// transition (js/data.js, js/state.js, js/app.js).
+const CACHE_NAME = 'onetrip-shell-v16';
 const SHELL_FILES = [
   './',
   './index.html',

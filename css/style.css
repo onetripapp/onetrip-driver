@@ -627,6 +627,47 @@ body {
   pointer-events: none;
 }
 
+/* Flash/torch toggle — sits in the bottom control row between Cancel and
+   Capture, not floated over the live feed, so it can never collide with
+   the top-anchored .camera-error banner regardless of how long that
+   message runs. Disabled ("Flash unavailable") on any device/browser that
+   doesn't expose real torch control (see openCamera in app.js); never
+   hidden outright, so the absence of flash is visible feedback, not a
+   silent no-op. */
+.camera-flash-toggle {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  padding: 16px 10px;
+}
+
+.camera-flash-toggle:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.camera-flash-toggle:disabled:active {
+  transform: none;
+  filter: none;
+}
+
+.camera-flash-toggle.flash-on {
+  background: var(--ink);
+  color: var(--ink-on);
+  border-color: var(--ink);
+}
+
+/* Landscape (see openCamera/closeCamera's orientation unlock/relock): a
+   short viewport height means the fixed bottom control bar can otherwise
+   eat a large fraction of the screen. Tap targets stay at --tap-min
+   (that floor is non-negotiable, not just a portrait default) — only the
+   surrounding padding tightens up to give the live feed more room. */
+@media (orientation: landscape) {
+  .camera-controls {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+}
+
 /* A camera/permission failure is a system error, not an inspection defect
    — stays neutral, same as every other non-defect warning in the app. */
 .camera-error {

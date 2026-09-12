@@ -41,8 +41,33 @@ const PHASE1_ZONES = [
     zoneName: 'Driver-Side Engine Bay',
     stations: [
       {
+        // First station of the whole walk, deliberately: the DOT number/
+        // company name placard on the driver door was previously only
+        // captured at Station 12 (In-Cab, Phase 3) — meaning a driver
+        // photographed it once there but had no earlier record of the
+        // actual number. Capturing the typed value here, at the start of
+        // the walk, lets Station 12 auto-populate from it instead of
+        // asking the driver to type the same number twice (see
+        // seedDotNumberFromDoorStation() in state.js, called at the
+        // Phase 2 -> 3 transition).
+        id: '1-door',
+        label: 'DOT number placard, driver door',
+        photoFilename: '01-door-dot-number.jpg',
+        subItems: [
+          {
+            id: '1-door-dot-number',
+            label: 'DOT number / company name displayed',
+            checkType: 'PHOTO',
+            // 'text' is a plain typed value alongside the usual Pass/Fail/
+            // N/A toggle (no OCR, no parsing) — see renderTextControl in
+            // app.js, the same shape as an un-thresholded numeric item.
+            mode: 'text',
+          },
+        ],
+      },
+      {
         id: '1a',
-        label: 'Oil dipstick area, belts, battery, air intake housing',
+        label: 'Driver-side oil dipstick area, belts, battery, air intake housing',
         photoFilename: '01a-driver-engine-bay.jpg',
         subItems: [
           { id: '1a-oil-level', label: 'Oil level', checkType: 'HAND' },
@@ -89,7 +114,7 @@ const PHASE1_ZONES = [
     stations: [
       {
         id: '2a',
-        label: 'Coolant reservoir, washer fluid, fuel/water separator',
+        label: 'Passenger-side coolant reservoir, washer fluid, fuel/water separator',
         photoFilename: '02a-passenger-engine-bay.jpg',
         subItems: [
           { id: '2a-coolant-level', label: 'Coolant level', checkType: 'PHOTO' },
@@ -160,7 +185,7 @@ const PHASE2_ZONES = [
       },
       {
         id: '3b',
-        label: 'Steer axle tires & wheels',
+        label: 'Steer axle tires & wheels, both sides',
         photoFilename: '03b-steer-axle-tires.jpg',
         subItems: [
           treadDepthItem('3b-tread-depth', 'Tread depth', 4),
@@ -457,7 +482,15 @@ const PHASE3_STATIONS = [
       { id: '12-fire-extinguisher', label: 'Fire extinguisher (10 B:C, charged, gauge green)', checkType: 'PHOTO' },
       { id: '12-warning-triangles', label: 'Warning triangles (3, present)', checkType: 'PHOTO' },
       { id: '12-spare-fuses', label: 'Spare fuses', checkType: 'PHOTO' },
-      { id: '12-dot-number', label: 'DOT number/company name displayed', checkType: 'PHOTO' },
+      {
+        id: '12-dot-number',
+        label: 'DOT number/company name displayed',
+        checkType: 'PHOTO',
+        // Pre-filled from Station 1-door (Phase 1) when the driver reaches
+        // Phase 3 — see seedDotNumberFromDoorStation() in state.js — but
+        // still a real editable field here in case it needs correcting.
+        mode: 'text',
+      },
       { id: '12-registration', label: 'Registration/permits/shipping papers', checkType: 'PHOTO' },
       { id: '12-inspection-sticker', label: 'Annual inspection sticker current', checkType: 'PHOTO' },
     ],
@@ -488,6 +521,13 @@ function getAllStationsWithZoneContext() {
 // baseline set only covers the 9 exterior/engine-bay zones), so this
 // correctly returns null for them — no overlay is shown there.
 function getZoneNumberForStation(stationId) {
+  // Station 1-door's close-up placard shot doesn't match Zone 1's wide
+  // engine-bay baseline reference photo (see baselineReference.js) — showing
+  // that overlay over a door-placard close-up would mislead framing rather
+  // than help it, so this one station is excluded here even though it's
+  // part of Zone 1's station list for every other purpose (walk order,
+  // progress, export).
+  if (stationId === '1-door') return null;
   for (const zone of [...PHASE1_ZONES, ...PHASE2_ZONES]) {
     if (zone.stations.some((s) => s.id === stationId)) return zone.zone;
   }
