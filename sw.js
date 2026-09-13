@@ -146,7 +146,23 @@
 // updateAfterToggleTap itself in js/app.js — those two sides must be kept
 // in sync by hand whenever either one changes, which is the real ongoing
 // cost of this approach and is called out explicitly at both ends.
-const CACHE_NAME = 'onetrip-shell-v21';
+// v22: step 3 of the flag -> fix -> acknowledge chain (steps 1/2 already
+// live in the driver app itself and in onetrip-mechanic, a separate repo).
+// Before Begin Inspection proceeds, the app now asks the shared Cloud Run
+// backend (js/drive.js's checkResolutionsForTruck) whether the selected
+// truck has any mechanic-certified fix the driver hasn't acknowledged yet
+// — the ONE place this app reads anything back from Drive, rather than
+// only uploading. If so, a new screen (renderResolutionAckScreen) shows
+// every one of them together (never one at a time), and a single Continue
+// button records the acknowledgment (acknowledgeResolutions) before
+// proceeding into Phase 1. Both the check and the acknowledgment fail
+// OPEN: any error — network, timeout, backend failure — lets the driver
+// proceed into the checklist exactly as before, on purpose, since nothing
+// gets marked acknowledged unless the write actually succeeds, so a
+// genuine unacknowledged item is never silently lost, only re-surfaced
+// next time. Editing truck/driver info mid-walk does NOT re-trigger this
+// check — only a genuine fresh start from Setup does.
+const CACHE_NAME = 'onetrip-shell-v22';
 const SHELL_FILES = [
   './',
   './index.html',

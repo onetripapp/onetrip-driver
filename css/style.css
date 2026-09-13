@@ -1011,3 +1011,55 @@ body {
 .reset-blocked {
   margin-top: 12px;
 }
+
+/* Resolved-defect acknowledgment screen. Deliberately reuses the same
+   neutral surface/border treatment as .station-card and .upload-status
+   rather than any warning color — everything shown here has already been
+   fixed, so this is informational, not an alert. */
+
+.resolution-ack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.resolution-ack-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.resolution-ack-station {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 0 0 6px;
+}
+
+.resolution-ack-label {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.resolution-ack-meta {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 6px;
+}
+
+.resolution-ack-notes {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0;
+}

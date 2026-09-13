@@ -21,6 +21,17 @@ let editInfoReturnScreen = null;
 // (uploading -> uploaded) and triggers another same-screen re-render.
 let completeMarkHasPlayed = false;
 
+// Resolved-defect acknowledgment gate (see renderResolutionAckScreen).
+// Transient, UI-only state — never persisted to localStorage, unlike
+// `inspection` itself: if the app closes mid-acknowledgment, reopening it
+// simply re-checks and shows the same items again, which is correct, not a
+// bug (nothing was marked acknowledged, so nothing should have been lost).
+let pendingResolutionAcks = [];
+// Where Begin Inspection was actually headed (usually 'phase1', but can be
+// editInfoReturnScreen's target) — held here so the acknowledgment
+// screen's Continue button lands in the right place once done.
+let resolutionAckTargetScreen = null;
+
 // --- render scheduling ---------------------------------------------------
 //
 // THE ACTUAL ROOT CAUSE of this app's recurring scroll-jump bug (fixed
@@ -105,6 +116,9 @@ function performRender() {
       break;
     case 'complete':
       screenNode = renderCompleteScreen();
+      break;
+    case 'resolutionAck':
+      screenNode = renderResolutionAckScreen();
       break;
     default:
       screenNode = renderSetupScreen();
@@ -243,10 +257,53 @@ function renderSetupScreen() {
     id: 'beginBtn',
     class: 'btn btn-primary btn-block btn-large',
     text: isEditing ? 'Start Inspection' : 'Begin Inspection — Phase 1',
-    onclick: () => {
+    onclick: async () => {
       if (!inspection.truckNumber.trim() || !inspection.driverName.trim()) return;
-      inspection.screen = editInfoReturnScreen || 'phase1';
+      const targetScreen = editInfoReturnScreen || 'phase1';
       editInfoReturnScreen = null;
+
+      // Editing truck/driver info mid-walk re-enters an ALREADY-STARTED
+      // inspection — the truck was already checked once, at the very start
+      // of THIS inspection, so there's nothing new to check here. Only a
+      // genuine fresh start (isEditing false) needs the resolution check.
+      // Deliberately checking `isEditing`, not targetScreen's value —
+      // targetScreen can legitimately equal 'phase1' even when editing
+      // (if that's the screen the edit-info link was tapped from), so
+      // comparing against 'phase1' would wrongly re-trigger the check.
+      if (isEditing) {
+        inspection.screen = targetScreen;
+        saveInspection();
+        render();
+        return;
+      }
+
+      // Direct DOM mutation, not render(): this is transient, pre-
+      // navigation UI state with nothing to persist, same pattern as
+      // updateBeginButtonState() below.
+      beginBtn.disabled = true;
+      beginBtn.textContent = 'Checking truck status…';
+
+      let items = [];
+      try {
+        items = await checkResolutionsForTruck(inspection.truckNumber.trim());
+      } catch (err) {
+        // Fail OPEN, deliberately: a network hiccup or a slow/erroring
+        // backend must never block the core inspection flow. Nothing was
+        // read successfully, so nothing here could possibly get marked
+        // acknowledged either — if this truck genuinely has something to
+        // acknowledge, the next attempt (by this driver or any other) will
+        // see it exactly the same as this one would have.
+        console.error('Resolution check failed, proceeding without it', err);
+        items = [];
+      }
+
+      if (items.length > 0) {
+        pendingResolutionAcks = items;
+        resolutionAckTargetScreen = targetScreen;
+        inspection.screen = 'resolutionAck';
+      } else {
+        inspection.screen = targetScreen;
+      }
       saveInspection();
       render();
     },
@@ -262,6 +319,82 @@ function updateBeginButtonState() {
   if (!btn) return;
   const ready = inspection.truckNumber.trim().length > 0 && inspection.driverName.trim().length > 0;
   btn.disabled = !ready;
+}
+
+// ---------- Resolved-defect acknowledgment screen ----------
+//
+// Shown between Setup and Phase 1, only when checkResolutionsForTruck()
+// (js/drive.js) found something — see the Begin Inspection button above.
+// Deliberately informational, not alarming: everything shown here has
+// already been fixed and certified by a mechanic; this is a read receipt,
+// not a re-inspection or a dispute mechanism. All pending items are shown
+// on this one screen together (never one at a time across multiple
+// screens), per the actual product decision this was built against.
+function renderResolutionAckScreen() {
+  const container = el('div', { class: 'screen resolution-ack-screen' });
+
+  container.appendChild(el('h1', { class: 'app-title', text: 'Repairs Since Your Last Inspection' }));
+  container.appendChild(el('p', {
+    class: 'done-copy',
+    text: `Truck ${inspection.truckNumber.trim()} had ${pendingResolutionAcks.length} item${pendingResolutionAcks.length === 1 ? '' : 's'} flagged and fixed since it was last inspected. Please review before continuing.`,
+  }));
+
+  const list = el('div', { class: 'resolution-ack-list' });
+  for (const item of pendingResolutionAcks) {
+    list.appendChild(renderResolutionAckCard(item));
+  }
+  container.appendChild(list);
+
+  const continueBtn = el('button', {
+    class: 'btn btn-primary btn-block btn-large',
+    text: "I've Seen This — Continue",
+    onclick: async () => {
+      continueBtn.disabled = true;
+      continueBtn.textContent = 'Saving…';
+
+      try {
+        await acknowledgeResolutions(pendingResolutionAcks, inspection.driverName.trim());
+      } catch (err) {
+        // Fail open here too, for the same reason as the check itself: a
+        // network hiccup on THIS specific step must not trap a driver on
+        // this screen and block them from starting the inspection. Because
+        // nothing here writes anything unless the backend call actually
+        // succeeds, a failure leaves these items genuinely unacknowledged
+        // in Drive — they'll correctly reappear next time, never silently
+        // dropped.
+        console.error('Failed to record acknowledgment, proceeding anyway', err);
+      }
+
+      const nextScreen = resolutionAckTargetScreen || 'phase1';
+      pendingResolutionAcks = [];
+      resolutionAckTargetScreen = null;
+      inspection.screen = nextScreen;
+      saveInspection();
+      render();
+    },
+  });
+  container.appendChild(continueBtn);
+
+  return container;
+}
+
+function renderResolutionAckCard(item) {
+  const card = el('div', { class: 'resolution-ack-card' });
+  const zoneLine = item.zoneName ? `${item.zoneName} — Station ${item.stationId}` : `Station ${item.stationId}`;
+  card.appendChild(el('p', { class: 'resolution-ack-station', text: zoneLine }));
+  card.appendChild(el('p', { class: 'resolution-ack-label', text: item.subItemLabel || item.stationLabel || 'Flagged item' }));
+
+  const resolution = item.resolution || {};
+  card.appendChild(el('p', {
+    class: 'resolution-ack-meta',
+    text: `Fixed by ${resolution.fixedBy || 'unknown'} on ${resolution.fixedDate || 'an unknown date'}`,
+  }));
+  card.appendChild(el('p', {
+    class: 'resolution-ack-notes',
+    text: resolution.repairNotes ? resolution.repairNotes : 'No repair notes were provided.',
+  }));
+
+  return card;
 }
 
 // ---------- Phase screens (shared renderer) ----------

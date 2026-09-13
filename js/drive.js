@@ -130,3 +130,72 @@ async function startUpload() {
   }
   render();
 }
+
+// ---------- Resolved-defect acknowledgment (backend read/write) ----------
+//
+// The one place this app reads anything back from Drive, rather than only
+// uploading — same backend, same shared secret, no new auth model, same
+// reasoning as the rest of this file: the driver never touches Drive or a
+// Google sign-in directly. Deliberately a much shorter timeout than
+// uploads: the caller (app.js's Begin Inspection handler) fails open on any
+// error here, including a timeout, so this should give up fast rather than
+// making a driver wait a long time before the app decides to let them
+// proceed anyway.
+const RESOLUTION_CHECK_TIMEOUT_MS = 12 * 1000;
+const RESOLUTION_ACK_TIMEOUT_MS = 20 * 1000;
+
+async function backendActionRequest(body, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(UPLOAD_FUNCTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-App-Secret': APP_SHARED_SECRET,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`Request timed out (${body.action}).`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Request failed (${body.action}, ${res.status}): ${errBody.slice(0, 200)}`);
+  }
+  return res.json();
+}
+
+// Returns the list of this truck's unacknowledged resolved defects (each
+// carrying enough to both display and later acknowledge — dataFileId,
+// stationId, subItemId, station/zone labels, and the resolution itself).
+// Throws on any failure; the caller (app.js) is responsible for the
+// fail-open decision, not this function.
+async function checkResolutionsForTruck(truckNumber) {
+  const result = await backendActionRequest(
+    { action: 'checkResolutions', fleetId: FLEET_ID, truckNumber },
+    RESOLUTION_CHECK_TIMEOUT_MS
+  );
+  return result.items || [];
+}
+
+// Acknowledges one or more resolved defects in a single call — items may
+// span more than one inspection file (see the backend's own comment on
+// applyAcknowledgments for why), which this call doesn't need to know or
+// care about; it just forwards whatever the check call returned. Throws on
+// failure — same fail-open handling as the check call: if this throws,
+// nothing was marked acknowledged, so these same items correctly reappear
+// next time, rather than being silently lost.
+async function acknowledgeResolutions(items, acknowledgedBy) {
+  await backendActionRequest(
+    { action: 'acknowledgeResolutions', fleetId: FLEET_ID, items, acknowledgedBy },
+    RESOLUTION_ACK_TIMEOUT_MS
+  );
+}
